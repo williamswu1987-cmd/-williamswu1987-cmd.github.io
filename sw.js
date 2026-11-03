@@ -1,5 +1,5 @@
-/* NearBite service worker — app shell offline; live map APIs always network. */
-const CACHE = "protiva-shell-v12";
+/* FitBite service worker — app shell offline; live map APIs always network. */
+const CACHE = "protiva-shell-v13";
 const SHELL = [
   "./",
   "./index.html",

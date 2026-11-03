@@ -1,6 +1,6 @@
 {
   "appId": "app.protiva.meal",
-  "appName": "NearBite",
+  "appName": "FitBite",
   "webDir": "www",
   "server": {
     "androidScheme": "https"

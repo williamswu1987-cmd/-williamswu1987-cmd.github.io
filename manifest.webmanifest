@@ -1,6 +1,6 @@
 {
-  "name": "NearBite",
-  "short_name": "NearBite",
+  "name": "FitBite",
+  "short_name": "FitBite",
   "description": "开定位，推附近好吃、不超卡、蛋白够的那一盘。",
   "start_url": "./",
   "scope": "./",
