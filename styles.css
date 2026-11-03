@@ -759,6 +759,48 @@ img {
   line-height: 1.35;
 }
 
+.phrase-tri,
+.coach-triple {
+  display: grid;
+  gap: 8px;
+}
+
+.tri-line {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, auto) 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.tri-tag {
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(232, 246, 244, 0.55);
+  padding-top: 0.2em;
+}
+
+.coach-say .tri-tag {
+  color: rgba(232, 246, 244, 0.55);
+}
+
+.phrase-tri .tri-text,
+.coach-triple .tri-text {
+  font-size: 0.98rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.phrase-tri .tri-line[data-lang="en"] .tri-text,
+.phrase-tri .tri-line[data-lang="zh"] .tri-text,
+.coach-triple .tri-line[data-lang="en"] .tri-text,
+.coach-triple .tri-line[data-lang="zh"] .tri-text {
+  font-weight: 550;
+  opacity: 0.88;
+  font-size: 0.9rem;
+}
+
 .coach {
   background: linear-gradient(165deg, rgba(8, 58, 68, 0.06), rgba(232, 246, 244, 0.9));
   border: 1px solid var(--line);
@@ -836,11 +878,15 @@ img {
   font-size: 0.98rem;
   font-weight: 650;
   line-height: 1.4;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
 }
 
 .coach-say li:last-child {
   margin-bottom: 0;
+}
+
+.coach-say .coach-triple {
+  margin-top: 2px;
 }
 
 .coach-hint {

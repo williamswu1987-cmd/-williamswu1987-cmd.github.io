@@ -2,7 +2,16 @@
   /**
    * Kitchen-facing order tweaks when a dish would overshoot calories
    * or undershoot protein for the remaining meal budget.
+   * Phrases are always offered as: local → English → 中文.
    */
+  const LANG_LABEL = {
+    en: "English",
+    zh: "中文",
+    sr: "Crnogorski / Srpski",
+    de: "Deutsch",
+    es: "Español",
+  };
+
   const PACKS = {
     en: {
       lessOil: "Please cook with less oil and less sauce to reduce calories.",
@@ -66,21 +75,95 @@
     return "en";
   }
 
+  function looksEnglish(s) {
+    return /^(i'?d like|please\b|can i |may i |i would like)/i.test(String(s || "").trim());
+  }
+
   function mid(range) {
     if (Array.isArray(range)) return (Number(range[0]) + Number(range[1])) / 2;
     return Number(range) || 0;
   }
 
+  function formatTripleCopy(local, en, zh, langLabel) {
+    return [
+      `当地（${langLabel}）：${local}`,
+      `English：${en}`,
+      `中文：${zh}`,
+    ].join("\n");
+  }
+
+  /** Triple rows for UI: local → English → 中文 */
+  function tripleRows(local, en, zh, lang) {
+    return [
+      { tag: LANG_LABEL[lang] || "当地", code: "local", text: local },
+      { tag: "English", code: "en", text: en },
+      { tag: "中文", code: "zh", text: zh },
+    ];
+  }
+
+  function renderTripleHtml(rows) {
+    return rows
+      .map(
+        (r) =>
+          `<div class="tri-line" data-lang="${r.code}"><span class="tri-tag">${r.tag}</span><span class="tri-text">${r.text}</span></div>`
+      )
+      .join("");
+  }
+
   /**
-   * @returns {{
-   *   needed: boolean,
-   *   overKcal: boolean,
-   *   lowProtein: boolean,
-   *   reasons: string[],
-   *   local: string,
-   *   userZh: string,
-   *   lang: string
-   * }}
+   * Build dish order phrase in local + English + 中文.
+   */
+  function buildAskTriple(dish, catalog) {
+    const lang = detectLang(catalog, dish?.restaurant);
+    const name = dish?.name || "this dish";
+    const nameLocal = dish?.nameLocal || name;
+    const raw = dish?.askLocal || "";
+
+    const en =
+      dish?.askEn ||
+      (looksEnglish(raw) ? raw : `I'd like the ${name}, please.`);
+    const zh = dish?.askZh || `请给我一份${name}。`;
+
+    let local;
+    if (lang === "en") local = en;
+    else if (lang === "zh") local = zh;
+    else if (raw && !looksEnglish(raw)) local = raw;
+    else if (lang === "sr") local = `Molim vas, ${nameLocal}.`;
+    else if (lang === "de") local = `Bitte einmal ${nameLocal}.`;
+    else if (lang === "es") local = `Por favor, ${nameLocal}.`;
+    else local = en;
+
+    const langLabel = LANG_LABEL[lang] || lang;
+    const rows = tripleRows(local, en, zh, lang);
+    return {
+      lang,
+      langLabel,
+      local,
+      en,
+      zh,
+      rows,
+      html: renderTripleHtml(rows),
+      copyText: formatTripleCopy(local, en, zh, langLabel),
+    };
+  }
+
+  function tripleForKey(key, lang) {
+    const localPack = PACKS[lang] || PACKS.en;
+    const local = localPack[key] || PACKS.en[key];
+    const en = PACKS.en[key];
+    const zh = PACKS.zh[key];
+    return {
+      key,
+      local,
+      en,
+      zh,
+      rows: tripleRows(local, en, zh, lang),
+      html: renderTripleHtml(tripleRows(local, en, zh, lang)),
+    };
+  }
+
+  /**
+   * @returns coach payload; lines are trilingual when needed
    */
   function buildCoach({ dish, goals, log, catalog }) {
     const remainKcal = Math.max(0, (goals?.kcal || 0) - (log?.kcal || 0));
@@ -89,13 +172,15 @@
     const eaten = Array.isArray(log?.items) ? log.items.length : 0;
     const mealsLeft = Math.max(1, mealsPerDay - eaten);
     const mealKcal = remainKcal / mealsLeft;
-    // Align with app mealProteinTarget: spread remaining, clamp 18–55g
-    const mealProtein = remainProtein <= 0 ? 0 : Math.min(55, Math.max(18, remainProtein / mealsLeft));
+    const mealProtein =
+      remainProtein <= 0 ? 0 : Math.min(55, Math.max(18, remainProtein / mealsLeft));
 
     const k = mid(dish.kcal);
     const p = mid(dish.protein);
     const overKcal = k > mealKcal + 40;
     const lowProtein = remainProtein > 0 && p < mealProtein - 8;
+
+    const ask = buildAskTriple(dish, catalog);
 
     if (!overKcal && !lowProtein) {
       return {
@@ -105,12 +190,15 @@
         reasons: [],
         local: "",
         userZh: "",
-        lang: "en",
+        lang: ask.lang,
+        langLabel: ask.langLabel,
+        ask,
+        triples: [],
+        copyText: ask.copyText,
       };
     }
 
-    const lang = detectLang(catalog, dish.restaurant);
-    const pack = PACKS[lang] || PACKS.en;
+    const lang = ask.lang;
     const keys = [];
     const reasons = [];
 
@@ -127,12 +215,24 @@
     }
 
     const uniq = [...new Set(keys)];
-    const localLines = uniq.map((key) => pack[key]).filter(Boolean);
-    const zhPack = PACKS.zh;
-    const zhLines = uniq.map((key) => zhPack[key]).filter(Boolean);
+    const triples = uniq.map((key) => tripleForKey(key, lang));
+    const localLines = triples.map((t) => t.local);
+    const enLines = triples.map((t) => t.en);
+    const zhLines = triples.map((t) => t.zh);
 
-    const dishAsk = dish.askLocal || `I'd like the ${dish.name}, please.`;
-    const local = [dishAsk, ...localLines].join("\n");
+    const tweakCopy = triples
+      .map((t, i) => {
+        const n = i + 1;
+        return [
+          `${n}. 当地（${ask.langLabel}）：${t.local}`,
+          `   English：${t.en}`,
+          `   中文：${t.zh}`,
+        ].join("\n");
+      })
+      .join("\n");
+
+    const copyText = [ask.copyText, "", "—— 厨房调整 ——", tweakCopy].join("\n");
+
     const userZh = [
       `点：${dish.name}`,
       ...reasons.map((r) => `· ${r}`),
@@ -140,19 +240,21 @@
       ...zhLines.map((l, i) => `${i + 1}. ${l}`),
     ].join("\n");
 
-    const langLabel = { en: "English", zh: "中文", sr: "Crnogorski / Srpski", de: "Deutsch", es: "Español" }[lang] || lang;
-
     return {
       needed: true,
       overKcal,
       lowProtein,
       reasons,
       localLines,
+      enLines,
       zhLines,
-      local,
+      triples,
+      ask,
+      local: [ask.local, ...localLines].join("\n"),
       userZh,
       lang,
-      langLabel,
+      langLabel: ask.langLabel,
+      copyText,
       mealKcal: Math.round(mealKcal),
       mealProtein: Math.round(mealProtein),
       dishKcal: Math.round(k),
@@ -160,5 +262,12 @@
     };
   }
 
-  window.ProtivaCoach = { buildCoach, detectLang, PACKS };
+  window.ProtivaCoach = {
+    buildCoach,
+    buildAskTriple,
+    detectLang,
+    PACKS,
+    LANG_LABEL,
+    renderTripleHtml,
+  };
 })();
