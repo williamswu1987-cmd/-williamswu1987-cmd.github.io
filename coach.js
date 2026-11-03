@@ -86,16 +86,16 @@
 
   function formatTripleCopy(local, en, zh, langLabel) {
     return [
-      `当地（${langLabel}）：${local}`,
-      `English：${en}`,
-      `中文：${zh}`,
+      `Local (${langLabel}): ${local}`,
+      `English: ${en}`,
+      `中文: ${zh}`,
     ].join("\n");
   }
 
   /** Triple rows for UI: local → English → 中文 */
   function tripleRows(local, en, zh, lang) {
     return [
-      { tag: LANG_LABEL[lang] || "当地", code: "local", text: local },
+      { tag: LANG_LABEL[lang] || "Local", code: "local", text: local },
       { tag: "English", code: "en", text: en },
       { tag: "中文", code: "zh", text: zh },
     ];
@@ -203,13 +203,13 @@
     const reasons = [];
 
     if (overKcal) {
-      reasons.push(`热量偏高（约 ${Math.round(k)} kcal，本餐建议 ≤ ${Math.round(mealKcal)}）`);
+      reasons.push(`High calories (~${Math.round(k)} kcal; this meal ≤ ${Math.round(mealKcal)})`);
       keys.push("lessOil", "sauceSide");
       if (/fried|frit|pomfrit|炸|chips|fries/i.test(dish.name || "")) keys.push("noFry", "veggiesSwap");
       else keys.push("lessCarb");
     }
     if (lowProtein) {
-      reasons.push(`蛋白偏低（约 ${Math.round(p)}g，本餐建议 ≥ ${Math.round(mealProtein)}g）`);
+      reasons.push(`Low protein (~${Math.round(p)}g; this meal ≥ ${Math.round(mealProtein)}g)`);
       if (/salad|bowl|pasta|pizza|soup|沙拉|面/i.test(dish.name || "")) keys.push("moreProtein", "extraEgg");
       else keys.push("moreProtein", "doubleChicken");
     }
@@ -224,19 +224,19 @@
       .map((t, i) => {
         const n = i + 1;
         return [
-          `${n}. 当地（${ask.langLabel}）：${t.local}`,
-          `   English：${t.en}`,
-          `   中文：${t.zh}`,
+          `${n}. Local (${ask.langLabel}): ${t.local}`,
+          `   English: ${t.en}`,
+          `   中文: ${t.zh}`,
         ].join("\n");
       })
       .join("\n");
 
-    const copyText = [ask.copyText, "", "—— 厨房调整 ——", tweakCopy].join("\n");
+    const copyText = [ask.copyText, "", "—— Kitchen tweaks ——", tweakCopy].join("\n");
 
     const userZh = [
-      `点：${dish.name}`,
+      `Order: ${dish.name}`,
       ...reasons.map((r) => `· ${r}`),
-      "请对厨师/服务员说：",
+      "Tell the chef/waiter:",
       ...zhLines.map((l, i) => `${i + 1}. ${l}`),
     ].join("\n");
 

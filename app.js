@@ -28,7 +28,7 @@
   const DEFICIT_RECOMMEND_LO = 500;
   const DEFICIT_RECOMMEND_HI = 700;
 
-  /** tasty = default; value = 性价比 optional */
+  /** tasty = default; value = Best value optional */
   const PREFS = ["tasty", "protein", "nearby", "value"];
 
   /** Active restaurant catalog — live GPS or Tivat demo seed */
@@ -89,7 +89,7 @@
     localStorage.setItem(PREF_KEY, pref);
   }
 
-  /** Heuristic "好吃" score — not a star rating, just ranking signal */
+  /** Heuristic "tasty" score — not a star rating, just ranking signal */
   function tasteScore(dish) {
     if (typeof dish.tasty === "number") return dish.tasty;
     let s = 5;
@@ -188,7 +188,7 @@
         reason: "need-weighins",
         formulaTdee: formula.tdee,
         weighIns,
-        message: `已记 ${weighIns.length} 次体重。再记一次（间隔约 10 天以上）即可校准。`,
+        message: `Logged ${weighIns.length} weigh-in(s). Add another (~10+ days apart) to calibrate.`,
       };
     }
     const first = weighIns[weighIns.length - 2];
@@ -206,7 +206,7 @@
         formulaTdee: formula.tdee,
         weighIns,
         days,
-        message: `最近两次间隔 ${days} 天。建议至少约 10 天（更理想 14–21 天）再校准。`,
+        message: `Only ${days} days apart. Wait ~10 days (ideally 14–21) before calibrating.`,
       };
     }
     const intake = avgIntakeBetween(useStart.date, useEnd.date);
@@ -234,8 +234,8 @@
       start: useStart,
       end: useEnd,
       message: usedFallback
-        ? `校准维持≈${tdee} kcal（体重 ${useStart.kg}→${useEnd.kg} kg / ${days} 天；吃饭记录偏少，摄入按档案估算）。`
-        : `校准维持≈${tdee} kcal（体重 ${useStart.kg}→${useEnd.kg} kg / ${days} 天；日均摄入≈${Math.round(avgIntake)}）。`,
+        ? `Calibrated maintenance ≈${tdee} kcal (weight ${useStart.kg}→${useEnd.kg} kg / ${days} days; sparse meal logs — intake estimated from profile).`
+        : `Calibrated maintenance ≈${tdee} kcal (weight ${useStart.kg}→${useEnd.kg} kg / ${days} days; avg intake ≈${Math.round(avgIntake)}).`,
     };
   }
 
@@ -497,7 +497,7 @@
         } else if (pref === "nearby") {
           score = 40 - walk * 3 + taste * 4 + health * 0.5;
         } else if (pref === "value") {
-          // Optional 性价比 mode only
+          // Optional Best value mode only
           score = pp * 14 + taste * 2 + (fitsProtein ? 4 : 0) + (confirmed ? 3 : 0);
         }
 
@@ -535,23 +535,23 @@
 
   function scoreBadge(d, pref) {
     if (pref === "value") {
-      return { main: `${d.pp.toFixed(1)}`, sub: "g/€", fit: d.fitsKcal && d.fitsProtein ? "符合目标" : "勉强可吃" };
+      return { main: `${d.pp.toFixed(1)}`, sub: "g/€", fit: d.fitsKcal && d.fitsProtein ? "Fits goals" : "Stretch" };
     }
     if (pref === "protein") {
       return {
         main: `${Math.round(mid(d.protein))}`,
-        sub: "g 蛋白",
-        fit: d.fitsProtein ? "蛋白够" : "蛋白偏低",
+        sub: "g protein",
+        fit: d.fitsProtein ? "Protein OK" : "Low protein",
       };
     }
     if (pref === "nearby") {
-      return { main: `${d.restaurant.walkMin}`, sub: "分钟", fit: d.fitsKcal ? "不超卡" : "略超卡" };
+      return { main: `${d.restaurant.walkMin}`, sub: "min", fit: d.fitsKcal ? "On calories" : "Slightly over" };
     }
     // tasty default
     return {
-      main: d.taste >= 7 ? "很赞" : d.taste >= 5.5 ? "好吃" : "还行",
+      main: d.taste >= 7 ? "Great" : d.taste >= 5.5 ? "Tasty" : "OK",
       sub: "",
-      fit: d.fitsKcal && d.fitsProtein ? "不超卡 · 蛋白够" : d.fitsKcal ? "不超卡" : "需留意热量",
+      fit: d.fitsKcal && d.fitsProtein ? "On calories · Protein OK" : d.fitsKcal ? "On calories" : "Watch calories",
     };
   }
 
@@ -576,23 +576,23 @@
     $$(".loc-chip").forEach((el) => {
       el.innerHTML = live
         ? `<span class="dot"></span> ${city}`
-        : `<span class="dot"></span> 演示 · ${city}`;
+        : `<span class="dot"></span> Demo · ${city}`;
     });
 
     const meta = $("#placesMeta");
     if (meta) {
       meta.textContent = placeCount
-        ? `${placeCount} 店 · ${dishCount} 菜`
+        ? `${placeCount} places · ${dishCount} dishes`
         : locating
-          ? "定位中…"
-          : "等待定位";
+          ? "Locating…"
+          : "Waiting for GPS";
     }
 
     const note = $("#dataNote");
     if (note) {
       note.textContent = live
-        ? `基于你附近的 OpenStreetMap 餐厅；菜品与营养为按菜系估算（非真实菜单）。来源：${catalog.source}。`
-        : "当前为 Tivat 演示菜单（人工录入）。点「用我的定位」可在任意城市使用。";
+        ? `Nearby OpenStreetMap places; dishes/nutrition estimated by cuisine (not real menus). Source: ${catalog.source}.`
+        : "Tivat demo menu (hand-curated). Tap “Refresh with my location” to use any city.";
     }
 
     updatePlanUi();
@@ -608,10 +608,10 @@
     const quota = $("#quotaLine");
     if (quota && window.ProtivaPay) {
       if (pro) {
-        quota.textContent = "FitBite Pro · 无限定位查询";
+        quota.textContent = "FitBite Pro · unlimited lookups";
       } else {
         const left = window.ProtivaPay.remainingLookups();
-        quota.textContent = `今日免费定位查询还剩 ${left} / ${window.ProtivaPay.FREE_DAILY_LOOKUPS} 次`;
+        quota.textContent = `Free lookups left today: ${left} / ${window.ProtivaPay.FREE_DAILY_LOOKUPS}`;
       }
     }
   }
@@ -619,7 +619,7 @@
   function openPaywall(reason) {
     const q = $("#paywallQuota");
     if (q) {
-      q.textContent = reason || "免费版每天有查询次数上限。升级 Pro 不限次数。";
+      q.textContent = reason || "Free plan has a daily lookup limit. Pro is unlimited.";
     }
     $("#paywall").classList.add("open");
   }
@@ -688,21 +688,21 @@
     if (!el || !sel) return;
     const v = clampDeficit(sel.value);
     if (v > DEFICIT_RECOMMEND_HI) {
-      el.textContent = `已选 ${v} kcal：接近上限，容易饿，不建议长期。推荐区间 ${DEFICIT_RECOMMEND_LO}–${DEFICIT_RECOMMEND_HI}。`;
+      el.textContent = `Selected ${v} kcal: near the max — gets hungry; not for long-term. Recommended ${DEFICIT_RECOMMEND_LO}–${DEFICIT_RECOMMEND_HI}.`;
     } else if (v < DEFICIT_RECOMMEND_LO) {
-      el.textContent = `已选 ${v} kcal：偏温和。推荐 ${DEFICIT_RECOMMEND_LO}–${DEFICIT_RECOMMEND_HI}；上限勿超 ${DEFICIT_MAX}。`;
+      el.textContent = `Selected ${v} kcal: mild. Recommended ${DEFICIT_RECOMMEND_LO}–${DEFICIT_RECOMMEND_HI}; don’t exceed ${DEFICIT_MAX}.`;
     } else {
-      el.textContent = `建议 ${DEFICIT_RECOMMEND_LO}–${DEFICIT_RECOMMEND_HI} kcal。超过 ${DEFICIT_MAX} 不建议：会很饿、难坚持。最后一餐会按步数 + 已吃热量，算出还要再消耗多少 / 再走多少步。`;
+      el.textContent = `Aim for ${DEFICIT_RECOMMEND_LO}–${DEFICIT_RECOMMEND_HI} kcal. Over ${DEFICIT_MAX} not recommended — too hungry. On the last meal we use steps + intake to estimate burn / walking still needed.`;
     }
   }
 
   function activityLabel(activity) {
     return (
       {
-        rare: "很少运动",
-        sometimes: "偶尔运动",
-        often: "经常健身",
-        intense: "高强度训练",
+        rare: "Rarely active",
+        sometimes: "Sometimes active",
+        often: "Often training",
+        intense: "Intense training",
       }[activity] || activity
     );
   }
@@ -712,11 +712,11 @@
     const meals = profile.mealsPerDay || 3;
     const el = $("#suggestMeta");
     if (el) {
-      const src = s.calibrated ? "校准维持" : "公式维持";
+      const src = s.calibrated ? "Calibrated maint." : "Formula maint.";
       const pNote = s.proteinAdjusted
-        ? `蛋白≈${s.protein}g（按调整体重 ${s.proteinKg}kg × ${s.proteinRate}）`
-        : `蛋白≈${s.protein}g（${s.proteinKg}kg × ${s.proteinRate}）`;
-      el.textContent = `BMR≈${s.bmr} · ${src}≈${s.tdee} · 摄入≈${s.kcal}（差−${s.deficit}）· ${pNote} · ${meals} 餐/天 · ${activityLabel(profile.activity)}`;
+        ? `Protein ≈${s.protein}g (adjusted ${s.proteinKg}kg × ${s.proteinRate})`
+        : `Protein ≈${s.protein}g (${s.proteinKg}kg × ${s.proteinRate})`;
+      el.textContent = `BMR≈${s.bmr} · ${src}≈${s.tdee} · intake≈${s.kcal} (deficit −${s.deficit}) · ${pNote} · ${meals} meals/day · ${activityLabel(profile.activity)}`;
     }
   }
 
@@ -738,16 +738,16 @@
       const recent = [...(calib.weighIns || [])].slice(-5).reverse();
       list.innerHTML = recent.length
         ? recent.map((w) => `<li><span>${w.date}</span><strong>${Number(w.kg).toFixed(1)} kg</strong></li>`).join("")
-        : `<li class="empty-li">还没有体重记录</li>`;
+        : `<li class="empty-li">No weigh-ins yet</li>`;
     }
 
     if (meta) {
       if (goals.useCalibratedTdee && goals.calibratedTdee) {
-        meta.textContent = `使用中 · ${goals.calibratedTdee} kcal`;
+        meta.textContent = `Active · ${goals.calibratedTdee} kcal`;
       } else if (calib.ready) {
-        meta.textContent = `可校准 · ${calib.tdee} kcal`;
+        meta.textContent = `Ready · ${calib.tdee} kcal`;
       } else {
-        meta.textContent = "公式估算中";
+        meta.textContent = "Using formula";
       }
     }
 
@@ -772,8 +772,8 @@
     updateSuggestMeta(profile);
     renderCalibPanel();
     if (toastMsg) {
-      const src = s.calibrated ? "校准" : "公式";
-      toast(`已按资料估算：摄入 ${s.kcal} kcal（${src}维持 ${s.tdee} − 差 ${s.deficit}）/ ${s.protein}g 蛋白`);
+      const src = s.calibrated ? "calibrated" : "formula";
+      toast(`Estimated: intake ${s.kcal} kcal (${src} maint. ${s.tdee} − deficit ${s.deficit}) / ${s.protein}g protein`);
     }
     return s;
   }
@@ -781,7 +781,7 @@
   function logWeighIn() {
     const kg = Number($("#weighInKg")?.value);
     if (!Number.isFinite(kg) || kg < 35 || kg > 200) {
-      toast("请填写有效体重（kg）");
+      toast("Enter a valid weight (kg)");
       return;
     }
     const date = todayKey();
@@ -794,13 +794,13 @@
     saveGoals(goals);
     renderCalibPanel();
     updateSuggestMeta({ ...goals, ...readProfileFromForm() });
-    toast(`已记下 ${date} · ${kg.toFixed(1)} kg`);
+    toast(`Saved ${date} · ${kg.toFixed(1)} kg`);
   }
 
   function applyCalibration() {
     const calib = computeCalibration({ ...loadGoals(), ...readProfileFromForm() });
     if (!calib.ready) {
-      toast(calib.message || "还不能校准");
+      toast(calib.message || "Not ready to calibrate yet");
       return;
     }
     const goals = loadGoals();
@@ -816,7 +816,7 @@
     next.useCalibratedTdee = true;
     saveGoals(next);
     renderCalibPanel();
-    toast(`已改用校准维持 ${calib.tdee} kcal，摄入已重算`);
+    toast(`Using calibrated maintenance ${calib.tdee} kcal — intake recalculated`);
   }
 
   function clearCalibration() {
@@ -830,7 +830,7 @@
     next.calibratedTdee = null;
     saveGoals(next);
     renderCalibPanel();
-    toast("已改回公式维持热量");
+    toast("Back to formula maintenance");
   }
 
   function setRankLoading(msg) {
@@ -843,7 +843,7 @@
     const panel = $("#deficitPanel");
     const stepsInput = $("#todaySteps");
     const card = $("#deficitCard");
-    if (chip) chip.textContent = `目标 −${plan.target}`;
+    if (chip) chip.textContent = `Target −${plan.target}`;
     if (stepsInput && document.activeElement !== stepsInput) {
       stepsInput.value = plan.steps ? String(plan.steps) : "";
     }
@@ -856,43 +856,40 @@
 
     const lines = [];
     lines.push(
-      `<p class="deficit-meta">维持≈${plan.maintenance} · 已吃 ${Math.round(plan.eaten)} · 步数消耗≈${plan.stepBurn} kcal</p>`
+      `<p class="deficit-meta">Maint.≈${plan.maintenance} · eaten ${Math.round(plan.eaten)} · steps≈${plan.stepBurn} kcal</p>`
     );
 
     if (plan.isDone) {
       const finalPlan = buildDeficitPlan(goals, log, 0);
       if (finalPlan.hit) {
         lines.push(
-          `<p class="deficit-main ok">今日热量差约 <strong>−${finalPlan.projected}</strong> kcal，已达到目标 −${finalPlan.target}。</p>`
+          `<p class="deficit-main ok">Today’s deficit ≈ <strong>−${finalPlan.projected}</strong> kcal — hit target −${finalPlan.target}.</p>`
         );
       } else {
         lines.push(
-          `<p class="deficit-main warn">今日热量差约 <strong>−${finalPlan.projected}</strong> kcal，距目标 −${finalPlan.target} 还差 <strong>${finalPlan.burnStillNeeded}</strong> kcal（约再走 <strong>${finalPlan.stepsStillNeeded.toLocaleString()}</strong> 步）。</p>`
+          `<p class="deficit-main warn">Deficit ≈ <strong>−${finalPlan.projected}</strong> kcal — still need <strong>${finalPlan.burnStillNeeded}</strong> kcal (~ <strong>${finalPlan.stepsStillNeeded.toLocaleString()}</strong> steps) to hit −${finalPlan.target}.</p>`
         );
       }
     } else if (plan.isLastMeal) {
       lines.push(
-        `<p class="deficit-main">最后一餐建议 ≤ <strong>${plan.lastMealCap}</strong> kcal，才能靠饮食压出 −${plan.target} 的热量差。</p>`
+        `<p class="deficit-main">Last meal ≤ <strong>${plan.lastMealCap}</strong> kcal to hit a −${plan.target} deficit from food alone.</p>`
       );
       if (plan.lastMealCap === 0) {
         lines.push(
-          `<p class="deficit-sub">已吃偏多：这餐尽量清淡，或再消耗 <strong>${Math.max(
-            0,
-            Math.round(plan.eaten + plan.target - plan.maintenance - plan.stepBurn)
-          )}</strong> kcal / 约 <strong>${plan.stepsStillNeeded.toLocaleString()}</strong> 步。</p>`
+          `<p class="deficit-sub">Already high intake: keep this meal light, or burn <strong>${Math.max(0, Math.round(plan.eaten + plan.target - plan.maintenance - plan.stepBurn))}</strong> kcal / ~ <strong>${plan.stepsStillNeeded.toLocaleString()}</strong> steps.</p>`
         );
       } else {
         lines.push(
-          `<p class="deficit-sub">若这餐按上限吃完，预计差约 −${plan.target}。吃得更少则差更大；超了就靠多走路补。</p>`
+          `<p class="deficit-sub">Eat up to that cap for ~−${plan.target}. Eat less → bigger deficit; go over → walk it off.</p>`
         );
       }
     } else {
       const remainMeals = plan.mealsLeft;
       lines.push(
-        `<p class="deficit-main">还剩 ${remainMeals} 餐。先记下今日步数；到<strong>最后一餐</strong>会按「维持热量 + 步数消耗 − 已吃」算出：这餐最多吃多少，以及还要再消耗多少卡 / 再走多少步。</p>`
+        `<p class="deficit-main">${remainMeals} meals left. Log steps now; on your <strong>last meal</strong> we’ll compute the max plate size and any extra burn / steps from maint. + steps − eaten.</p>`
       );
       lines.push(
-        `<p class="deficit-sub">目标热量差 −${plan.target} kcal（档案可改；建议 ${plan.recommendLo}–${plan.recommendHi}，勿超 ${DEFICIT_MAX}）。</p>`
+        `<p class="deficit-sub">Deficit target −${plan.target} kcal (editable; aim ${plan.recommendLo}–${plan.recommendHi}, max ${DEFICIT_MAX}).</p>`
       );
     }
 
@@ -917,7 +914,7 @@
       const eaten = log.items?.length || 0;
       const left = Math.max(0, meals - eaten);
       const def = clampDeficit(goals.deficitTarget ?? defaults.deficitTarget);
-      homeLede.textContent = `今日 ${meals} 餐制 · 已记 ${eaten} 餐 · 还剩 ${left} 餐 · 热量差目标 −${def} kcal。先满足：不超卡 · 蛋白够。`;
+      homeLede.textContent = `Today: ${meals} meals · logged ${eaten} · ${left} left · deficit −${def} kcal. Priorities: on calories · enough protein.`;
     }
 
     renderDeficitPanel(goals, log);
@@ -925,12 +922,12 @@
     updateLocationChip();
 
     if (locating) {
-      setRankLoading("正在读取定位并搜索附近餐厅…");
+      setRankLoading("Getting location and searching nearby…");
       return;
     }
 
     if (!catalog?.restaurants?.length) {
-      setRankLoading("附近暂时没有餐厅数据。请允许定位，或使用 Tivat 演示数据。");
+      setRankLoading("No nearby places yet. Allow location, or use the Tivat demo.");
       return;
     }
 
@@ -939,7 +936,7 @@
     const top = rankDishes(goals, log, pref);
     const list = $("#rankList");
     if (!top.length) {
-      list.innerHTML = `<div class="empty">今天额度里暂时没有合适推荐。调高预算，或先重置今日记录。</div>`;
+      list.innerHTML = `<div class="empty">Nothing fits today’s budget. Raise budget or reset today’s log.</div>`;
       return;
     }
 
@@ -951,10 +948,10 @@
         <div class="rank-num">${i + 1}</div>
         <div class="rank-body">
           <strong>${d.name}</strong>
-          <div class="meta">${d.restaurant.name} · €${d.price.toFixed(1)} · 走 ${d.restaurant.walkMin} 分钟${
-            d.fromUserMenu || d.confirmed ? " · 已确认" : d.estimated ? " · 估" : ""
+          <div class="meta">${d.restaurant.name} · €${d.price.toFixed(1)} · ${d.restaurant.walkMin} min walk${
+            d.fromUserMenu || d.confirmed ? " · confirmed" : d.estimated ? " · est." : ""
           }<br/>
-          蛋白 ${d.protein[0]}–${d.protein[1]}g · ${d.kcal[0]}–${d.kcal[1]} kcal</div>
+          Protein ${d.protein[0]}–${d.protein[1]}g · ${d.kcal[0]}–${d.kcal[1]} kcal</div>
         </div>
         <div class="rank-score">
           <div class="pp">${badge.main}${badge.sub ? `<small> ${badge.sub}</small>` : ""}</div>
@@ -986,11 +983,11 @@
     const st = $("#trustStatus");
     if (!st) return;
     const bits = [];
-    if (fb.exists === "yes") bits.push("已标记：店里有");
-    if (fb.exists === "no") bits.push("已标记：没有这道（将不再推荐）");
-    if (fb.taste === "up") bits.push("你觉得好吃");
-    if (fb.taste === "down") bits.push("你觉得不好吃");
-    st.textContent = bits.length ? bits.join(" · ") : "还没反馈。你的标记会立刻影响排序。";
+    if (fb.exists === "yes") bits.push("Marked: they have it");
+    if (fb.exists === "no") bits.push("Marked: not on menu (won’t recommend)");
+    if (fb.taste === "up") bits.push("You liked it");
+    if (fb.taste === "down") bits.push("You didn’t like it");
+    st.textContent = bits.length ? bits.join(" · ") : "No feedback yet. Your tags change ranking immediately.";
   }
 
   function openDetail(dishId) {
@@ -1001,13 +998,13 @@
     const pp = proteinPerEuro(dish);
 
     $("#sheetTitle").textContent = dish.name;
-    $("#sheetPlace").textContent = `${dish.restaurant.name} · ${dish.restaurant.cuisine} · 走 ${dish.restaurant.walkMin} 分钟`;
+    $("#sheetPlace").textContent = `${dish.restaurant.name} · ${dish.restaurant.cuisine} · ${dish.restaurant.walkMin} min walk`;
     $("#statPrice").textContent = `€${dish.price.toFixed(1)}`;
     $("#statProtein").textContent = `${dish.protein[0]}–${dish.protein[1]}g`;
     $("#statKcal").textContent = `${dish.kcal[0]}–${dish.kcal[1]}`;
     $("#statPp").textContent = pp.toFixed(1);
     const t = tasteScore(dish) + (window.ProtivaTrust?.tasteBoost(dish.id) || 0);
-    $("#statTaste").textContent = t >= 7 ? "很赞" : t >= 5.5 ? "好吃" : "还行";
+    $("#statTaste").textContent = t >= 7 ? "Great" : t >= 5.5 ? "Tasty" : "OK";
     renderAskPhrase(dish);
     renderCoach(dish);
     renderSheetDeficit(dish);
@@ -1015,11 +1012,11 @@
       Math.min(0.98, (dish.confidence || 0.5) + (window.ProtivaTrust?.confidenceBoost(dish.id) || 0)) * 100
     );
     if (dish.fromUserMenu) {
-      $("#confidence").textContent = `来自你上传/确认的菜单，可信度约 ${conf}%。营养仍可能是粗估。`;
+      $("#confidence").textContent = `From your uploaded/confirmed menu (~${conf}% confidence). Nutrition may still be estimated.`;
     } else if (dish.estimated) {
-      $("#confidence").textContent = `模板估算菜（不是店家真实菜单），可信度约 ${conf}%。请用下方按钮纠正。`;
+      $("#confidence").textContent = `Template estimate (not the real menu) · ~${conf}% confidence. Correct with the buttons below.`;
     } else {
-      $("#confidence").textContent = `营养为估算区间，可信度 ${conf}%（不做假精确）`;
+      $("#confidence").textContent = `Nutrition is an estimated range · ${conf}% confidence (not false precision)`;
     }
     syncTrustButtons(dish.id);
     $("#overlay").classList.add("open");
@@ -1053,16 +1050,16 @@
     el.hidden = false;
     if (progress.isDone) {
       el.innerHTML = plan.hit
-        ? `<strong>热量差</strong> 今日约 −${plan.projected} kcal（目标 −${plan.target}）· 已达成`
-        : `<strong>热量差</strong> 今日约 −${plan.projected} kcal · 还差 ${plan.burnStillNeeded} kcal ≈ 再走 ${plan.stepsStillNeeded.toLocaleString()} 步`;
+        ? `<strong>Deficit</strong> today ≈ −${plan.projected} kcal (target −${plan.target}) · hit`
+        : `<strong>Deficit</strong> today ≈ −${plan.projected} kcal · still need ${plan.burnStillNeeded} kcal ≈ ${plan.stepsStillNeeded.toLocaleString()} steps`;
       return;
     }
     if (plan.hit) {
-      el.innerHTML = `<strong>最后一餐 · 热量差</strong> 吃这道后预计约 −${plan.projected} kcal（目标 −${plan.target}）· 已够，不必再强制多走`;
+      el.innerHTML = `<strong>Last meal · deficit</strong> After this dish ≈ −${plan.projected} kcal (target −${plan.target}) · enough, no forced extra walk`;
     } else {
-      el.innerHTML = `<strong>最后一餐 · 热量差</strong> 吃这道（约 ${Math.round(
+      el.innerHTML = `<strong>Last meal · deficit</strong> After this dish (~${Math.round(
         mealK
-      )} kcal）后，还需再消耗 <strong>${plan.burnStillNeeded}</strong> kcal，约再走 <strong>${plan.stepsStillNeeded.toLocaleString()}</strong> 步`;
+      )} kcal), still burn <strong>${plan.burnStillNeeded}</strong> kcal ≈ <strong>${plan.stepsStillNeeded.toLocaleString()}</strong> steps`;
     }
   }
 
@@ -1094,14 +1091,14 @@
     }
     block.hidden = false;
     const flags = [];
-    if (coach.overKcal) flags.push(`<span class="coach-flag hot">热量偏高</span>`);
-    if (coach.lowProtein) flags.push(`<span class="coach-flag cool">蛋白不够</span>`);
+    if (coach.overKcal) flags.push(`<span class="coach-flag hot">High calories</span>`);
+    if (coach.lowProtein) flags.push(`<span class="coach-flag cool">Low protein</span>`);
     flagsEl.innerHTML = flags.join("");
     reasonsEl.innerHTML = (coach.reasons || []).map((r) => `<li>${r}</li>`).join("");
     linesEl.innerHTML = (coach.triples || [])
       .map((t) => `<li class="coach-triple">${t.html}</li>`)
       .join("");
-    langLabel.textContent = `请对厨师 / 服务员说（${coach.langLabel || coach.lang} · 英 · 中）`;
+    langLabel.textContent = `Tell chef / waiter (${coach.langLabel || coach.lang} · EN · ZH)`;
   }
 
   function closeDetail() {
@@ -1113,7 +1110,7 @@
 
   function openMenuSheet() {
     if (!selected) return;
-    $("#menuPlace").textContent = `${selected.restaurant.name} · 拍菜单后记下真实菜名`;
+    $("#menuPlace").textContent = `${selected.restaurant.name} · snap the menu, then type real dish names`;
     $("#menuDishName").value = "";
     $("#menuDishPrice").value = "10";
     $("#menuDishNote").value = "";
@@ -1140,12 +1137,12 @@
       ...patch,
     });
     if (patch.exists === "no") {
-      toast("已记下：没有这道。下次不再推荐。");
+      toast("Noted: not on the menu. Won’t recommend next time.");
       closeDetail();
       renderHome();
       return;
     }
-    toast("感谢反馈，排序已更新");
+    toast("Thanks — ranking updated");
     renderHome();
     openDetail(id);
   }
@@ -1165,7 +1162,7 @@
     saveLog(log);
     closeDetail();
     renderHome();
-    toast(`已记录：${name}。今日剩余已更新。`);
+    toast(`Logged: ${name}. Today’s remaining updated.`);
   }
 
   function resetToday() {
@@ -1173,7 +1170,7 @@
     delete all[todayKey()];
     localStorage.setItem(LOG_KEY, JSON.stringify(all));
     renderHome();
-    toast("今日记录已清空");
+    toast("Today’s log cleared");
   }
 
   function applyDemoPitch() {
@@ -1204,7 +1201,7 @@
       ],
     });
     renderHome();
-    toast("演示：最后一餐 · 已吃 1600 · 5500 步 · 热量差目标 −600");
+    toast("Demo: last meal · eaten 1600 · 5500 steps · deficit −600");
   }
 
   function saveTodaySteps(raw) {
@@ -1220,7 +1217,7 @@
     return Promise.race([
       promise,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`${label || "操作"}超时`)), ms)
+        setTimeout(() => reject(new Error(`${label || "Operation"} timed out`)), ms)
       ),
     ]);
   }
@@ -1230,23 +1227,23 @@
       await window.ProtivaPay.refreshStatus?.().catch(() => {});
       const gate = window.ProtivaPay.peekLookupAllowed();
       if (!gate.ok) {
-        openPaywall("今天的免费定位次数用完了。升级 Pro 可继续无限刷新附近推荐。");
+        openPaywall("Out of free location lookups today. Upgrade to Pro for unlimited nearby picks.");
         return;
       }
     }
 
     locating = true;
     renderHome();
-    if (!silent) toast("正在请求定位…");
+    if (!silent) toast("Requesting location…");
 
     try {
-      const pos = await withTimeout(window.ProtivaGeo.getPosition(), 12000, "定位");
+      const pos = await withTimeout(window.ProtivaGeo.getPosition(), 12000, "Location");
       const { latitude, longitude } = pos.coords;
-      if (!silent) toast("定位成功，正在搜附近餐厅…");
+      if (!silent) toast("Location OK — searching nearby…");
       catalog = await withTimeout(
         window.ProtivaGeo.buildLiveCatalog(latitude, longitude),
         18000,
-        "搜索附近餐厅"
+        "Search nearby restaurants"
       );
       if (window.ProtivaTrust) {
         catalog = window.ProtivaTrust.mergeUserDishesIntoCatalog(catalog);
@@ -1256,7 +1253,7 @@
       if (countUsage && window.ProtivaPay && !silent) {
         const used = await window.ProtivaPay.consumeLookup();
         if (!used.ok) {
-          openPaywall("今天的免费定位次数用完了。升级 Pro 可继续无限刷新附近推荐。");
+          openPaywall("Out of free location lookups today. Upgrade to Pro for unlimited nearby picks.");
           locating = false;
           renderHome();
           return;
@@ -1264,19 +1261,19 @@
       }
 
       if (!catalog.restaurants.length) {
-        toast("附近地图数据很少，已切到 Tivat 演示菜单");
+        toast("Sparse map data nearby — switched to Tivat demo menu");
         useSeedCatalog();
       } else {
-        toast(`已加载 ${catalog.city} 附近 ${catalog.restaurants.length} 家店`);
+        toast(`Loaded ${catalog.restaurants.length} places near ${catalog.city}`);
       }
     } catch (err) {
       console.warn(err);
       const msg =
         err?.code === 1
-          ? "定位被拒绝。请在系统设置里打开定位，或先用演示数据。"
-          : /超时|Failed to fetch|NetworkError|Load failed/i.test(String(err?.message || err))
-            ? "当前网络访问地图服务受限（国内网络常见）。已切换演示菜单，可先体验完整流程。"
-            : err?.message || "定位失败";
+          ? "Location denied. Enable GPS in settings, or use the demo."
+          : /timed out|超时|Failed to fetch|NetworkError|Load failed/i.test(String(err?.message || err))
+            ? "Map services are blocked on this network. Switched to demo so you can still try the full flow."
+            : err?.message || "Location failed";
       toast(msg);
       if (!catalog || !catalog.restaurants?.length) useSeedCatalog();
     } finally {
@@ -1307,7 +1304,7 @@
     });
     installBtn?.addEventListener("click", async () => {
       if (!deferredPrompt) {
-        toast("请用手机浏览器菜单里的「添加到主屏幕」");
+        toast("Use your browser menu → Add to Home Screen");
         return;
       }
       deferredPrompt.prompt();
@@ -1380,7 +1377,7 @@
       e.preventDefault();
       saveGoals(readGoalsForm());
       showScreen("screen-home");
-      toast("目标已保存");
+      toast("Goals saved");
       await locateAndLoad();
     });
 
@@ -1397,8 +1394,8 @@
         savePref(btn.dataset.pref);
         syncPrefButtons(btn.dataset.pref);
         renderHome();
-        const labels = { tasty: "好吃优先", protein: "蛋白优先", nearby: "最近", value: "性价比" };
-        toast(`已切换：${labels[btn.dataset.pref] || btn.dataset.pref}`);
+        const labels = { tasty: "Tasty first", protein: "Protein first", nearby: "Nearest", value: "Best value" };
+        toast(`Switched: ${labels[btn.dataset.pref] || btn.dataset.pref}`);
       });
     });
     $("#btnUseLocation").addEventListener("click", () => locateAndLoad({ countUsage: true }));
@@ -1406,7 +1403,7 @@
       locating = false;
       useSeedCatalog();
       renderHome();
-      toast("已切换到 Tivat 演示菜单");
+      toast("Switched to Tivat demo menu");
     });
     $("#btnOpenPro")?.addEventListener("click", () => openPaywall());
     $("#btnPlan")?.addEventListener("click", () => openPaywall());
@@ -1419,9 +1416,9 @@
         await window.ProtivaPay.purchase("monthly");
         closePaywall();
         updatePlanUi();
-        toast("已在服务器开通 Pro（测试）。本地改存储无效。");
+        toast("Pro unlocked on server (test). Editing local storage won’t work.");
       } catch {
-        toast("开通失败：服务器不可用");
+        toast("Couldn’t unlock: server unavailable");
       }
     });
     $("#btnBuyYearly")?.addEventListener("click", async () => {
@@ -1429,15 +1426,15 @@
         await window.ProtivaPay.purchase("yearly");
         closePaywall();
         updatePlanUi();
-        toast("已在服务器开通 Pro 年付（测试）。");
+        toast("Pro yearly unlocked on server (test).");
       } catch {
-        toast("开通失败：服务器不可用");
+        toast("Couldn’t unlock: server unavailable");
       }
     });
     $("#btnRestore")?.addEventListener("click", async () => {
       const res = await window.ProtivaPay.restore();
       updatePlanUi();
-      toast(res.ok ? "已从服务器恢复 Pro" : "没有找到可恢复的购买");
+      toast(res.ok ? "Pro restored from server" : "No purchase to restore");
       if (res.ok) closePaywall();
     });
     $("#btnExistsYes")?.addEventListener("click", () => recordTrust({ exists: "yes" }));
@@ -1455,7 +1452,7 @@
       if (!file || !prev || !selected) return;
       const url = URL.createObjectURL(file);
       prev.hidden = false;
-      prev.innerHTML = `<img src="${url}" alt="菜单照片预览" />`;
+      prev.innerHTML = `<img src="${url}" alt="Menu photo preview" />`;
       window.ProtivaTrust?.saveMenuPhotoMeta(selected.restaurant.id, {
         name: file.name,
         size: file.size,
@@ -1467,7 +1464,7 @@
       const name = ($("#menuDishName").value || "").trim();
       const price = Number($("#menuDishPrice").value) || 10;
       if (!name) {
-        toast("请填写菜单上的菜名");
+        toast("Enter the dish name from the menu");
         return;
       }
       const est = window.ProtivaTrust.estimateFromName(name, price);
@@ -1483,7 +1480,7 @@
       closeMenuSheet();
       closeDetail();
       renderHome();
-      toast(`已加入真实菜：${name}。下次会优先推荐已确认菜单。`);
+      toast(`Added real dish: ${name}. Confirmed menu items rank higher next time.`);
     });
     $("#btnCloseSheet").addEventListener("click", closeDetail);
     $("#overlay").addEventListener("click", (e) => {
@@ -1503,8 +1500,8 @@
         await navigator.clipboard.writeText(text);
         toast(
           lastCoach?.needed
-            ? "已复制三语点餐句 + 厨房助手话术"
-            : "已复制三语点餐句（当地 · 英 · 中）"
+            ? "Copied trilingual order + kitchen coach lines"
+            : "Copied trilingual order lines (local · EN · ZH)"
         );
       } catch {
         toast(text);

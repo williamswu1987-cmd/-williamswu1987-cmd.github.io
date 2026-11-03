@@ -182,7 +182,7 @@ out center tags 40;`;
       if (res.ok) {
         const data = await res.json();
         const p = data.features?.[0]?.properties || {};
-        const label = p.city || p.town || p.village || p.county || p.state || "当前位置";
+        const label = p.city || p.town || p.village || p.county || p.state || "Current location";
         if (label) {
           return {
             label,
@@ -203,12 +203,12 @@ out center tags 40;`;
       const a = data.address || {};
       return {
         label:
-          a.city || a.town || a.village || a.municipality || a.suburb || a.county || "当前位置",
+          a.city || a.town || a.village || a.municipality || a.suburb || a.county || "Current location",
         country: a.country || "",
         countryCode: (a.country_code || "").toUpperCase(),
       };
     } catch {
-      return { label: "当前位置", country: "", countryCode: "" };
+      return { label: "Current location", country: "", countryCode: "" };
     }
   }
 
@@ -248,7 +248,7 @@ out center tags 40;`;
     // Prefer a city label from nearby hits if reverse geocode is generic
     const cityFromHits = topPlaces.find((p) => p.city)?.city;
     return {
-      city: where.label && where.label !== "当前位置" ? where.label : cityFromHits || where.label,
+      city: where.label && where.label !== "Current location" ? where.label : cityFromHits || where.label,
       country: where.country || topPlaces.find((p) => p.country)?.country || "",
       cityCenter: { lat, lng },
       source,
@@ -260,7 +260,7 @@ out center tags 40;`;
   function getPosition(options = {}) {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject(new Error("此设备不支持定位"));
+        reject(new Error("This device does not support geolocation"));
         return;
       }
       navigator.geolocation.getCurrentPosition(resolve, reject, {

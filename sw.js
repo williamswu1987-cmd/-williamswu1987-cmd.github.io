@@ -1,5 +1,5 @@
 /* FitBite service worker — app shell offline; live map APIs always network. */
-const CACHE = "protiva-shell-v13";
+const CACHE = "protiva-shell-v14";
 const SHELL = [
   "./",
   "./index.html",

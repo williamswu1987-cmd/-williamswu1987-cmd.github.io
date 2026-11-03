@@ -9,9 +9,9 @@
   };
 
   const PRICES = {
-    monthlyLabel: "€4.99 / 月",
-    yearlyLabel: "€29.99 / 年",
-    yearlySave: "省约 50%",
+    monthlyLabel: "€4.99 / month",
+    yearlyLabel: "€29.99 / year",
+    yearlySave: "Save ~50%",
   };
 
   const FREE_DAILY_LOOKUPS = 3;

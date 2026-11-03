@@ -1,14 +1,14 @@
 {
   "name": "FitBite",
   "short_name": "FitBite",
-  "description": "开定位，推附近好吃、不超卡、蛋白够的那一盘。",
+  "description": "Nearby tasty meals that fit your calorie budget and protein goal.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#062a32",
   "theme_color": "#062a32",
-  "lang": "zh-Hans",
+  "lang": "en",
   "icons": [
     {
       "src": "assets/icons/icon-192.png",
