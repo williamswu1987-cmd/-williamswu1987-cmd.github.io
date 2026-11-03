@@ -85,11 +85,15 @@
       <section class="screen" id="screen-home">
         <div class="topbar">
           <div class="logo">Proti<span>va</span></div>
-          <div class="chip loc-chip"><span class="dot"></span> 定位中</div>
+          <div class="topbar-right">
+            <button type="button" class="chip plan-chip" id="btnPlan">Free</button>
+            <div class="chip loc-chip"><span class="dot"></span> 定位中</div>
+          </div>
         </div>
         <div class="panel">
           <h2>今日还剩</h2>
           <p class="lede">先满足：好吃 · 不超卡 · 蛋白够。下面可选排序偏好。</p>
+          <p class="quota" id="quotaLine">今日免费定位查询还剩 — 次</p>
           <div class="budget">
             <div class="budget-item">
               <div class="label">卡路里</div>
@@ -125,14 +129,41 @@
 
           <div class="actions" style="margin-top: 16px">
             <button class="cta" id="btnUseLocation" type="button">用我的定位刷新</button>
+            <button class="cta light" id="btnOpenPro" type="button">升级 Protiva Pro</button>
             <button class="cta light" id="btnUseDemo" type="button">改用 Tivat 演示菜单</button>
             <button class="cta light" id="btnDemoPitch" type="button">演示剧本：剩 1050 卡 / 120g 蛋白</button>
             <button class="cta light" id="btnEditGoals" type="button">改目标</button>
             <button class="cta light" id="btnResetToday" type="button">重置今日记录</button>
           </div>
           <p class="note" id="dataNote">有网并允许定位后，会搜索你附近的餐厅。</p>
+          <p class="note legal-links">
+            <a href="privacy.html">隐私政策</a> · <a href="terms.html">使用条款</a>
+          </p>
         </div>
       </section>
+
+      <!-- Pro paywall -->
+      <div class="overlay" id="paywall" aria-hidden="true">
+        <div class="sheet paywall-sheet" role="dialog" aria-modal="true" aria-labelledby="paywallTitle">
+          <div class="sheet-handle"></div>
+          <h2 id="paywallTitle">Protiva Pro</h2>
+          <p class="place">解锁无限定位推荐，把「好吃 · 不超卡 · 蛋白够」用成日常习惯。</p>
+          <ul class="pro-perks">
+            <li>无限次附近 Top 3 刷新</li>
+            <li>保留全部推荐偏好（好吃 / 蛋白 / 最近 / 性价比）</li>
+            <li>优先支持后续真实菜单与营养校准</li>
+            <li>无广告（上架后保持清爽）</li>
+          </ul>
+          <p class="note" id="paywallQuota"></p>
+          <div class="actions">
+            <button class="cta" id="btnBuyYearly" type="button">年付 · €29.99（更划算）</button>
+            <button class="cta light" id="btnBuyMonthly" type="button">月付 · €4.99</button>
+            <button class="cta light" id="btnRestore" type="button">恢复购买</button>
+            <button class="cta light" id="btnClosePaywall" type="button">继续免费版</button>
+          </div>
+          <p class="note">App Store 内购上架后走苹果支付。当前网页/测试包为模拟开通，方便你先验证商业流程。</p>
+        </div>
+      </div>
 
       <!-- Detail sheet -->
       <div class="overlay" id="overlay" aria-hidden="true">
@@ -167,6 +198,7 @@
     <script src="data/menus.js"></script>
     <script src="data/cuisine-templates.js"></script>
     <script src="geo.js"></script>
+    <script src="monetization.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -264,6 +264,38 @@
         ? `基于你附近的 OpenStreetMap 餐厅；菜品与营养为按菜系估算（非真实菜单）。来源：${catalog.source}。`
         : "当前为 Tivat 演示菜单（人工录入）。点「用我的定位」可在任意城市使用。";
     }
+
+    updatePlanUi();
+  }
+
+  function updatePlanUi() {
+    const pro = window.ProtivaPay?.isPro?.();
+    const planBtn = $("#btnPlan");
+    if (planBtn) {
+      planBtn.textContent = pro ? "Pro" : "Free";
+      planBtn.classList.toggle("pro", !!pro);
+    }
+    const quota = $("#quotaLine");
+    if (quota && window.ProtivaPay) {
+      if (pro) {
+        quota.textContent = "Protiva Pro · 无限定位查询";
+      } else {
+        const left = window.ProtivaPay.remainingLookups();
+        quota.textContent = `今日免费定位查询还剩 ${left} / ${window.ProtivaPay.FREE_DAILY_LOOKUPS} 次`;
+      }
+    }
+  }
+
+  function openPaywall(reason) {
+    const q = $("#paywallQuota");
+    if (q) {
+      q.textContent = reason || "免费版每天有查询次数上限。升级 Pro 不限次数。";
+    }
+    $("#paywall").classList.add("open");
+  }
+
+  function closePaywall() {
+    $("#paywall").classList.remove("open");
   }
 
   function fillGoalsForm(goals) {
@@ -435,7 +467,15 @@
     ]);
   }
 
-  async function locateAndLoad({ silent = false } = {}) {
+  async function locateAndLoad({ silent = false, countUsage = true } = {}) {
+    if (countUsage && window.ProtivaPay && !silent) {
+      const gate = window.ProtivaPay.peekLookupAllowed();
+      if (!gate.ok) {
+        openPaywall("今天的免费定位次数用完了。升级 Pro 可继续无限刷新附近推荐。");
+        return;
+      }
+    }
+
     locating = true;
     renderHome();
     if (!silent) toast("正在请求定位…");
@@ -450,6 +490,10 @@
         "搜索附近餐厅"
       );
       localStorage.setItem(MODE_KEY, "live");
+
+      if (countUsage && window.ProtivaPay && !silent) {
+        window.ProtivaPay.consumeLookup();
+      }
 
       if (!catalog.restaurants.length) {
         toast("附近地图数据很少，已切到 Tivat 演示菜单");
@@ -523,12 +567,36 @@
         toast(`已切换：${labels[btn.dataset.pref] || btn.dataset.pref}`);
       });
     });
-    $("#btnUseLocation").addEventListener("click", () => locateAndLoad());
+    $("#btnUseLocation").addEventListener("click", () => locateAndLoad({ countUsage: true }));
     $("#btnUseDemo").addEventListener("click", () => {
       locating = false;
       useSeedCatalog();
       renderHome();
       toast("已切换到 Tivat 演示菜单");
+    });
+    $("#btnOpenPro")?.addEventListener("click", () => openPaywall());
+    $("#btnPlan")?.addEventListener("click", () => openPaywall());
+    $("#btnClosePaywall")?.addEventListener("click", closePaywall);
+    $("#paywall")?.addEventListener("click", (e) => {
+      if (e.target.id === "paywall") closePaywall();
+    });
+    $("#btnBuyMonthly")?.addEventListener("click", async () => {
+      await window.ProtivaPay.purchase("monthly");
+      closePaywall();
+      updatePlanUi();
+      toast("已开通 Pro（测试模拟）。上架后将走 App Store 支付。");
+    });
+    $("#btnBuyYearly")?.addEventListener("click", async () => {
+      await window.ProtivaPay.purchase("yearly");
+      closePaywall();
+      updatePlanUi();
+      toast("已开通 Pro 年付（测试模拟）。上架后将走 App Store 支付。");
+    });
+    $("#btnRestore")?.addEventListener("click", async () => {
+      const res = await window.ProtivaPay.restore();
+      updatePlanUi();
+      toast(res.ok ? "已恢复 Pro 权益" : "没有找到可恢复的购买");
+      if (res.ok) closePaywall();
     });
     $("#btnCloseSheet").addEventListener("click", closeDetail);
     $("#overlay").addEventListener("click", (e) => {
