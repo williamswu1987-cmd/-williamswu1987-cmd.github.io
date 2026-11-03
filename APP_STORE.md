@@ -1,4 +1,4 @@
-# Prota 上架 App Store & 赚钱路线
+# NearBite 上架 App Store & 赚钱路线
 
 > **当前阶段**：先用 GitHub Pages + PWA 获客验证。确认有人愿意付费后，再走下面的 App Store 流程。
 
@@ -39,7 +39,7 @@
 
 1. 注册 [Apple Developer Program](https://developer.apple.com/programs/)（约 $99/年）
 2. 准备可公开访问的隐私政策 URL（可先用 GitHub Pages 的 `privacy.html`）
-3. 决定销售地区、年龄分级（Prota 建议 4+ / 无限制内容）
+3. 决定销售地区、年龄分级（NearBite 建议 4+ / 无限制内容）
 
 ### 2. 在 Mac 上生成 iOS 工程
 
@@ -62,12 +62,12 @@ npx cap open ios         # 打开 Xcode
 
 ```xml
 <key>NSLocationWhenInUseUsageDescription</key>
-<string>Prota 需要定位，才能推荐你附近好吃且符合卡路里/蛋白目标的餐食。</string>
+<string>NearBite 需要定位，才能推荐你附近好吃且符合卡路里/蛋白目标的餐食。</string>
 ```
 
 ### 3. App Store Connect
 
-1. 新建 App：名称 Prota，Bundle ID `app.protiva.meal`
+1. 新建 App：名称 NearBite，Bundle ID `app.protiva.meal`
 2. **订阅群组** → 创建自动续订：
    - 月付：`app.protiva.meal.pro.monthly`
    - 年付：`app.protiva.meal.pro.yearly`

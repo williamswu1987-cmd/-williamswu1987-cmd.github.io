@@ -1,7 +1,7 @@
 {
-  "name": "Prota",
-  "short_name": "Prota",
-  "description": "到饭点推附近好吃、不超卡、蛋白够的那一盘。",
+  "name": "NearBite",
+  "short_name": "NearBite",
+  "description": "开定位，推附近好吃、不超卡、蛋白够的那一盘。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -29,5 +29,9 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["food", "health", "lifestyle"]
+  "categories": [
+    "food",
+    "health",
+    "lifestyle"
+  ]
 }

@@ -1,5 +1,5 @@
-/* Prota service worker — app shell offline; live map APIs always network. */
-const CACHE = "protiva-shell-v11";
+/* NearBite service worker — app shell offline; live map APIs always network. */
+const CACHE = "protiva-shell-v12";
 const SHELL = [
   "./",
   "./index.html",

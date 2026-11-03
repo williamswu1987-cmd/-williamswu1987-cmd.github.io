@@ -240,7 +240,7 @@ img {
 .brand {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(2.9rem, 12vw, 3.55rem);
+  font-size: clamp(2.45rem, 10.5vw, 3.15rem);
   letter-spacing: -0.045em;
   line-height: 0.92;
   margin: 0 0 14px;

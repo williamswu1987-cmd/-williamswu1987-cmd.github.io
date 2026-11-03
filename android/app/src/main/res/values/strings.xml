@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Prota</string>
-    <string name="title_activity_main">Prota</string>
+    <string name="app_name">NearBite</string>
+    <string name="title_activity_main">NearBite</string>
     <string name="package_name">app.protiva.meal</string>
     <string name="custom_url_scheme">app.protiva.meal</string>
 </resources>
