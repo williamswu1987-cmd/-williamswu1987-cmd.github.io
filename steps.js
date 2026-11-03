@@ -20,33 +20,90 @@
     return plugins.Health || plugins.HealthKit || plugins.HealthConnect || null;
   }
 
+  /** Evening reminder slots: 18:00–21:00 every 30 minutes. */
+  const REMINDER_SLOTS = [
+    { hour: 18, minute: 0 },
+    { hour: 18, minute: 30 },
+    { hour: 19, minute: 0 },
+    { hour: 19, minute: 30 },
+    { hour: 20, minute: 0 },
+    { hour: 20, minute: 30 },
+    { hour: 21, minute: 0 },
+  ];
+
+  function pad2(n) {
+    return String(n).padStart(2, "0");
+  }
+
+  function slotValue({ hour, minute }) {
+    return `${pad2(hour)}:${pad2(minute)}`;
+  }
+
+  function normalizeSlot(hour, minute) {
+    const h = Math.round(Number(hour));
+    let m = Math.round(Number(minute) || 0);
+    if (m !== 0 && m !== 30) m = m < 15 ? 0 : m < 45 ? 30 : 0;
+    const match = REMINDER_SLOTS.find((s) => s.hour === h && s.minute === m);
+    return match || REMINDER_SLOTS[0];
+  }
+
+  function parseSlotValue(value) {
+    const m = String(value || "").match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return REMINDER_SLOTS[0];
+    return normalizeSlot(Number(m[1]), Number(m[2]));
+  }
+
+  function formatSlotLabel(slot) {
+    const s = normalizeSlot(slot.hour, slot.minute);
+    return `${pad2(s.hour)}:${pad2(s.minute)}`;
+  }
+
   function loadNotifyPrefs() {
+    let raw = {};
     try {
-      return {
-        enabled: true,
-        hour: 18,
-        lastDay: null,
-        ...JSON.parse(localStorage.getItem(NOTIFY_KEY) || "{}"),
-      };
+      raw = JSON.parse(localStorage.getItem(NOTIFY_KEY) || "{}") || {};
     } catch {
-      return { enabled: true, hour: 18, lastDay: null };
+      raw = {};
     }
+    const slot = normalizeSlot(raw.hour ?? 18, raw.minute ?? 0);
+    return {
+      enabled: raw.enabled !== false,
+      hour: slot.hour,
+      minute: slot.minute,
+      lastDay: raw.lastDay || null,
+    };
   }
 
   function saveNotifyPrefs(p) {
-    localStorage.setItem(NOTIFY_KEY, JSON.stringify(p));
+    const slot = normalizeSlot(p?.hour ?? 18, p?.minute ?? 0);
+    localStorage.setItem(
+      NOTIFY_KEY,
+      JSON.stringify({
+        enabled: p?.enabled !== false,
+        hour: slot.hour,
+        minute: slot.minute,
+        lastDay: p?.lastDay || null,
+      })
+    );
   }
 
   function todayKey() {
     return new Date().toISOString().slice(0, 10);
   }
 
-  function msUntilNextHour(hour) {
+  function msUntilNextSlot(hour, minute) {
+    const slot = normalizeSlot(hour, minute);
     const now = new Date();
     const next = new Date(now);
-    next.setHours(hour, 0, 0, 0);
+    next.setHours(slot.hour, slot.minute, 0, 0);
     if (next <= now) next.setDate(next.getDate() + 1);
     return next.getTime() - now.getTime();
+  }
+
+  function isPastOrAtSlot(prefs, now = new Date()) {
+    const slot = normalizeSlot(prefs?.hour ?? 18, prefs?.minute ?? 0);
+    const mins = now.getHours() * 60 + now.getMinutes();
+    return mins >= slot.hour * 60 + slot.minute;
   }
 
   async function ensurePermission() {
@@ -200,11 +257,12 @@
   async function notifyDeficitSteps(plan, reason = "reminder") {
     const prefs = loadNotifyPrefs();
     if (!prefs.enabled && reason === "schedule") return false;
+    const when = formatSlotLabel(prefs);
     const title =
       reason === "last-meal"
         ? "FitBite · after your last meal"
         : reason === "schedule"
-          ? "FitBite · 6pm deficit check"
+          ? `FitBite · ${when} deficit check`
           : "FitBite · steps for your deficit";
     const body = deficitStepsMessage(plan);
     const shown = await showLocalNotification(title, body, `fitbite-${reason}-${todayKey()}`);
@@ -216,18 +274,18 @@
   }
 
   let _timer = null;
-  function scheduleSixPmReminder(getPlanFn) {
+  function scheduleEveningReminder(getPlanFn) {
     if (_timer) clearTimeout(_timer);
     const prefs = loadNotifyPrefs();
     if (!prefs.enabled) return;
-    const wait = msUntilNextHour(prefs.hour || 18);
+    const wait = msUntilNextSlot(prefs.hour, prefs.minute);
     _timer = setTimeout(async () => {
       const prefsNow = loadNotifyPrefs();
       if (prefsNow.enabled && prefsNow.lastDay !== todayKey()) {
         const plan = typeof getPlanFn === "function" ? getPlanFn() : null;
         await notifyDeficitSteps(plan, "schedule");
       }
-      scheduleSixPmReminder(getPlanFn);
+      scheduleEveningReminder(getPlanFn);
     }, wait);
   }
 
@@ -236,21 +294,32 @@
     const prefs = loadNotifyPrefs();
     prefs.enabled = !!ok;
     saveNotifyPrefs(prefs);
-    if (ok) scheduleSixPmReminder(getPlanFn);
+    if (ok) scheduleEveningReminder(getPlanFn);
     return ok;
+  }
+
+  function setReminderSlot(value, getPlanFn) {
+    const slot = typeof value === "string" ? parseSlotValue(value) : normalizeSlot(value?.hour, value?.minute);
+    const prefs = loadNotifyPrefs();
+    prefs.hour = slot.hour;
+    prefs.minute = slot.minute;
+    saveNotifyPrefs(prefs);
+    if (prefs.enabled && "Notification" in window && Notification.permission === "granted") {
+      scheduleEveningReminder(getPlanFn);
+    }
+    return prefs;
   }
 
   function bootReminders(getPlanFn) {
     const prefs = loadNotifyPrefs();
     if (!prefs.enabled) return;
     if ("Notification" in window && Notification.permission === "granted") {
-      // Catch-up if user opens app after 6pm and wasn’t notified
-      const now = new Date();
-      if (now.getHours() >= (prefs.hour || 18) && prefs.lastDay !== todayKey()) {
+      // Catch-up if user opens app after their chosen slot and wasn’t notified
+      if (isPastOrAtSlot(prefs) && prefs.lastDay !== todayKey()) {
         const plan = typeof getPlanFn === "function" ? getPlanFn() : null;
         notifyDeficitSteps(plan, "schedule");
       }
-      scheduleSixPmReminder(getPlanFn);
+      scheduleEveningReminder(getPlanFn);
     }
   }
 
@@ -263,9 +332,15 @@
     ensurePermission,
     enableReminders,
     bootReminders,
+    scheduleEveningReminder,
+    setReminderSlot,
     notifyDeficitSteps,
     deficitStepsMessage,
     loadNotifyPrefs,
     saveNotifyPrefs,
+    REMINDER_SLOTS,
+    slotValue,
+    formatSlotLabel,
+    parseSlotValue,
   };
 })();

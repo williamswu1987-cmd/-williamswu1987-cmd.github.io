@@ -926,13 +926,13 @@
         );
       } else {
         lines.push(
-          `<p class="deficit-sub">Eat up to that cap for ~−${plan.target}. Eat less → bigger deficit; go over → walk it off. We’ll notify at 6pm / after this meal.</p>`
+          `<p class="deficit-sub">Eat up to that cap for ~−${plan.target}. Eat less → bigger deficit; go over → walk it off. We’ll notify at your evening time / after this meal.</p>`
         );
       }
     } else {
       const remainMeals = plan.mealsLeft;
       lines.push(
-        `<p class="deficit-main">${remainMeals} meals left. Sync Health steps now; on your <strong>last meal</strong> (or at 6pm) we’ll tell you exactly how many steps close the −${plan.target} gap.</p>`
+        `<p class="deficit-main">${remainMeals} meals left. Sync Health steps now; on your <strong>last meal</strong> (or at your evening remind time) we’ll tell you exactly how many steps close the −${plan.target} gap.</p>`
       );
       lines.push(
         `<p class="deficit-sub">Deficit target −${plan.target} kcal (editable; aim ${plan.recommendLo}–${plan.recommendHi}, max ${DEFICIT_MAX}).</p>`
@@ -1327,20 +1327,36 @@
     });
 
     const chk = $("#chkStepNotify");
-    if (chk && window.FitBiteSteps) {
+    const timeSelect = $("#notifyTime");
+    if (window.FitBiteSteps) {
       const prefs = window.FitBiteSteps.loadNotifyPrefs();
-      chk.checked = !!prefs.enabled;
-      chk.addEventListener("change", async () => {
+      if (chk) chk.checked = !!prefs.enabled;
+      if (timeSelect) {
+        timeSelect.value = window.FitBiteSteps.slotValue(prefs);
+        timeSelect.disabled = !prefs.enabled;
+      }
+      chk?.addEventListener("change", async () => {
         if (chk.checked) {
+          if (timeSelect) {
+            window.FitBiteSteps.setReminderSlot(timeSelect.value, currentDeficitPlan);
+          }
           const ok = await window.FitBiteSteps.enableReminders(currentDeficitPlan);
           chk.checked = ok;
-          toast(ok ? "6pm + last-meal deficit alerts on" : "Notification permission denied");
+          if (timeSelect) timeSelect.disabled = !ok;
+          const when = window.FitBiteSteps.formatSlotLabel(window.FitBiteSteps.loadNotifyPrefs());
+          toast(ok ? `Alerts on · ${when} + after last meal` : "Notification permission denied");
         } else {
           const prefsNow = window.FitBiteSteps.loadNotifyPrefs();
           prefsNow.enabled = false;
           window.FitBiteSteps.saveNotifyPrefs(prefsNow);
+          if (timeSelect) timeSelect.disabled = true;
           toast("Deficit step alerts off");
         }
+      });
+      timeSelect?.addEventListener("change", () => {
+        const prefs = window.FitBiteSteps.setReminderSlot(timeSelect.value, currentDeficitPlan);
+        const when = window.FitBiteSteps.formatSlotLabel(prefs);
+        toast(prefs.enabled ? `Evening remind set to ${when}` : `Saved ${when} — enable alerts to notify`);
       });
     }
 

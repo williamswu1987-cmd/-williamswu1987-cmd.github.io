@@ -253,10 +253,24 @@
               <span class="deficit-walk-kcal" id="deficitWalkKcal"></span>
             </div>
             <div class="deficit-body" id="deficitPanel"></div>
-            <label class="deficit-notify">
-              <input type="checkbox" id="chkStepNotify" checked />
-              Notify at 6pm · after last meal
-            </label>
+            <div class="deficit-notify-row">
+              <label class="deficit-notify">
+                <input type="checkbox" id="chkStepNotify" checked />
+                Evening remind · after last meal
+              </label>
+              <div class="field deficit-notify-time">
+                <label for="notifyTime">Time (6–9pm)</label>
+                <select id="notifyTime" aria-label="Evening reminder time">
+                  <option value="18:00" selected>18:00</option>
+                  <option value="18:30">18:30</option>
+                  <option value="19:00">19:00</option>
+                  <option value="19:30">19:30</option>
+                  <option value="20:00">20:00</option>
+                  <option value="20:30">20:30</option>
+                  <option value="21:00">21:00</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div class="pref-block">
