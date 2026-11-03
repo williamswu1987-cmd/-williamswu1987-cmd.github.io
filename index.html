@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#062a32" />
+    <meta name="theme-color" content="#041c24" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;550;650;700&family=Syne:wght@700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
@@ -33,15 +33,18 @@
             src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80"
             alt="Grilled seafood plate"
           />
+          <div class="hero-scan" aria-hidden="true"></div>
         </div>
         <div class="hero-copy">
           <p class="brand">Proti<span>va</span></p>
           <h1>到饭点，推附近好吃又健康的那一盘</h1>
-          <p>不超卡、蛋白够。性价比只是可选项。有网开定位，哪里都能用。</p>
-          <button class="cta" id="btnLocateHero" type="button">开启定位，看附近 Top 3</button>
-          <button class="cta secondary" id="btnStart" type="button">先设置今日目标</button>
-          <button class="cta secondary" id="btnSkipDemo" type="button">先看演示（可稍后定位）</button>
-          <button class="cta secondary" id="btnInstall" type="button" hidden>安装到手机主屏幕</button>
+          <p class="hero-lede">不超卡、蛋白够。性价比只是可选项。有网开定位，哪里都能用。</p>
+          <div class="hero-cta">
+            <button class="cta" id="btnLocateHero" type="button">开启定位，看附近 Top 3</button>
+            <button class="cta secondary" id="btnStart" type="button">先设置今日目标</button>
+            <button class="cta secondary" id="btnSkipDemo" type="button">先看演示（可稍后定位）</button>
+            <button class="cta secondary" id="btnInstall" type="button" hidden>安装到手机主屏幕</button>
+          </div>
           <p class="install-hint" id="installHint">
             iPhone：Safari 打开 → 分享 →「添加到主屏幕」
           </p>
@@ -203,14 +206,19 @@
           </div>
           <div class="rank-list" id="rankList"></div>
 
-          <div class="actions" style="margin-top: 16px">
+          <div class="actions primary-actions">
             <button class="cta" id="btnUseLocation" type="button">用我的定位刷新</button>
             <button class="cta light" id="btnOpenPro" type="button">升级 Protiva Pro</button>
-            <button class="cta light" id="btnUseDemo" type="button">改用 Tivat 演示菜单</button>
-            <button class="cta light" id="btnDemoPitch" type="button">演示剧本：最后一餐 · 热量差 −600</button>
-            <button class="cta light" id="btnEditGoals" type="button">改目标</button>
-            <button class="cta light" id="btnResetToday" type="button">重置今日记录</button>
           </div>
+          <details class="tools-drawer">
+            <summary>更多工具 · 演示 / 目标 / 重置</summary>
+            <div class="actions">
+              <button class="cta light" id="btnUseDemo" type="button">改用 Tivat 演示菜单</button>
+              <button class="cta light" id="btnDemoPitch" type="button">演示剧本：最后一餐 · 热量差 −600</button>
+              <button class="cta light" id="btnEditGoals" type="button">改目标</button>
+              <button class="cta light" id="btnResetToday" type="button">重置今日记录</button>
+            </div>
+          </details>
           <p class="note" id="dataNote">有网并允许定位后，会搜索你附近的餐厅。</p>
           <p class="note legal-links">
             <a href="privacy.html">隐私政策</a> · <a href="terms.html">使用条款</a>
