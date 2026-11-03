@@ -706,7 +706,9 @@
       const msg =
         err?.code === 1
           ? "定位被拒绝。请在系统设置里打开定位，或先用演示数据。"
-          : err?.message || "定位失败";
+          : /超时|Failed to fetch|NetworkError|Load failed/i.test(String(err?.message || err))
+            ? "当前网络访问地图服务受限（国内网络常见）。已切换演示菜单，可先体验完整流程。"
+            : err?.message || "定位失败";
       toast(msg);
       if (!catalog || !catalog.restaurants?.length) useSeedCatalog();
     } finally {
