@@ -239,6 +239,24 @@
     };
   }
 
+  /**
+   * Protein dosing weight: if BMI is high, don't multiply by total mass
+   * (extra fat tissue doesn't need that much protein). Use adjusted BW:
+   * ideal(BMI≈22) + 25% of excess.
+   */
+  function proteinDosingWeight(weightKg, heightCm) {
+    const weight = Number(weightKg) || defaults.weightKg;
+    const heightM = (Number(heightCm) || defaults.heightCm) / 100;
+    if (heightM <= 0) return weight;
+    const bmi = weight / (heightM * heightM);
+    if (bmi <= 25) {
+      return { kg: weight, bmi, adjusted: false };
+    }
+    const ideal = 22 * heightM * heightM;
+    const adjusted = ideal + 0.25 * (weight - ideal);
+    return { kg: Math.round(adjusted * 10) / 10, bmi, adjusted: true, ideal: Math.round(ideal * 10) / 10 };
+  }
+
   /** Formula-only TDEE (ignores calibration flags). */
   function suggestNutritionFormula(profile) {
     const weight = Number(profile.weightKg) || defaults.weightKg;
@@ -258,12 +276,28 @@
     let kcal = Math.round((tdee - deficit) / 50) * 50;
     kcal = Math.min(4500, Math.max(1200, kcal));
 
-    const pPerKg = { rare: 1.2, sometimes: 1.45, often: 1.8, intense: 2.05 }[activity] || 1.45;
-    const ageBoost = age >= 50 ? 0.15 : age >= 40 ? 0.05 : 0;
-    let protein = Math.round((weight * (pPerKg + ageBoost)) / 5) * 5;
-    protein = Math.min(300, Math.max(50, protein));
+    // Mainstream ranges: ~1.2 sedentary → ~1.8 hard training (per dosing kg)
+    const pPerKg = { rare: 1.2, sometimes: 1.4, often: 1.6, intense: 1.8 }[activity] || 1.4;
+    const ageBoost = age >= 50 ? 0.1 : age >= 40 ? 0.05 : 0;
+    // Slight bump while cutting to help spare muscle
+    const cutBoost = deficit >= 500 ? 0.15 : 0;
+    const dosing = proteinDosingWeight(weight, height);
+    const rate = pPerKg + ageBoost + cutBoost;
+    let protein = Math.round((dosing.kg * rate) / 5) * 5;
+    protein = Math.min(220, Math.max(50, protein));
 
-    return { kcal, protein, bmr: Math.round(bmr), tdee, deficit, formulaTdee: tdee, calibrated: false };
+    return {
+      kcal,
+      protein,
+      bmr: Math.round(bmr),
+      tdee,
+      deficit,
+      formulaTdee: tdee,
+      calibrated: false,
+      proteinRate: Math.round(rate * 100) / 100,
+      proteinKg: dosing.kg,
+      proteinAdjusted: dosing.adjusted,
+    };
   }
 
   /**
@@ -679,7 +713,10 @@
     const el = $("#suggestMeta");
     if (el) {
       const src = s.calibrated ? "校准维持" : "公式维持";
-      el.textContent = `BMR≈${s.bmr} · ${src}≈${s.tdee} · 摄入≈${s.kcal}（差−${s.deficit}）· ${meals} 餐/天 · ${activityLabel(profile.activity)}`;
+      const pNote = s.proteinAdjusted
+        ? `蛋白≈${s.protein}g（按调整体重 ${s.proteinKg}kg × ${s.proteinRate}）`
+        : `蛋白≈${s.protein}g（${s.proteinKg}kg × ${s.proteinRate}）`;
+      el.textContent = `BMR≈${s.bmr} · ${src}≈${s.tdee} · 摄入≈${s.kcal}（差−${s.deficit}）· ${pNote} · ${meals} 餐/天 · ${activityLabel(profile.activity)}`;
     }
   }
 
