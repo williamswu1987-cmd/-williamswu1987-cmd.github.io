@@ -452,7 +452,18 @@
     return true;
   }
 
+  /** How many dish options to show for the next meal (not “meals per day”). */
+  function recommendCount(goals, log) {
+    const { mealsLeft, isDone } = mealsProgress(goals, log);
+    if (isDone) return 0;
+    // One meal left → one best pick; otherwise up to 3 options for this meal.
+    return Math.min(3, Math.max(1, mealsLeft));
+  }
+
   function rankDishes(goals, log, pref = loadPref()) {
+    const topN = recommendCount(goals, log);
+    if (topN <= 0) return [];
+
     const deficit = buildDeficitPlan(goals, log, 0);
     let remainKcal = Math.max(0, goals.kcal - log.kcal);
     // Last meal: also respect deficit-aware cap so dinner doesn't wipe the heat gap.
@@ -520,17 +531,17 @@
 
     // Must: within calories + meet protein need. Soften only if too few results.
     let pool = enriched.filter((d) => d.fitsKcal && d.fitsProtein);
-    if (pool.length < 3) {
+    if (pool.length < topN) {
       pool = enriched.filter((d) => d.fitsKcal && mid(d.protein) >= Math.min(18, proteinNeed));
     }
-    if (pool.length < 3) {
+    if (pool.length < topN) {
       pool = enriched.filter((d) => d.fitsKcal);
     }
-    if (pool.length < 3) {
+    if (pool.length < topN) {
       pool = enriched;
     }
 
-    return pool.sort((a, b) => b.score - a.score).slice(0, 3);
+    return pool.sort((a, b) => b.score - a.score).slice(0, topN);
   }
 
   function scoreBadge(d, pref) {
@@ -582,7 +593,7 @@
     const meta = $("#placesMeta");
     if (meta) {
       meta.textContent = placeCount
-        ? `${placeCount} places · ${dishCount} dishes`
+        ? `${placeCount} place${placeCount === 1 ? "" : "s"} nearby`
         : locating
           ? "Locating…"
           : "Waiting for GPS";
@@ -909,17 +920,26 @@
     $("#remainBudget").textContent = remainBudget;
 
     const homeLede = $("#homeLede");
+    const meals = goals.mealsPerDay || 3;
+    const eaten = log.items?.length || 0;
+    const left = Math.max(0, meals - eaten);
+    const def = clampDeficit(goals.deficitTarget ?? defaults.deficitTarget);
     if (homeLede) {
-      const meals = goals.mealsPerDay || 3;
-      const eaten = log.items?.length || 0;
-      const left = Math.max(0, meals - eaten);
-      const def = clampDeficit(goals.deficitTarget ?? defaults.deficitTarget);
-      homeLede.textContent = `Today: ${meals} meals · logged ${eaten} · ${left} left · deficit −${def} kcal. Priorities: on calories · enough protein.`;
+      const mealWord = meals === 1 ? "meal" : "meals";
+      const leftWord = left === 1 ? "meal" : "meals";
+      homeLede.textContent = `Today: ${meals} ${mealWord} · logged ${eaten} · ${left} ${leftWord} left · deficit −${def} kcal. Priorities: on calories · enough protein.`;
     }
 
     renderDeficitPanel(goals, log);
 
     updateLocationChip();
+
+    const sectionTitle = document.querySelector("#screen-home .section-label h3");
+    const topN = recommendCount(goals, log);
+    if (sectionTitle) {
+      sectionTitle.textContent =
+        topN <= 0 ? "Today’s meals" : topN === 1 ? "Best pick for this meal" : `Top ${topN} for this meal`;
+    }
 
     if (locating) {
       setRankLoading("Getting location and searching nearby…");
@@ -935,8 +955,20 @@
     syncPrefButtons(pref);
     const top = rankDishes(goals, log, pref);
     const list = $("#rankList");
+    const meta = $("#placesMeta");
+    if (meta && catalog?.restaurants?.length) {
+      const placeCount = catalog.restaurants.length;
+      if (topN <= 0) {
+        meta.textContent = "All meals logged";
+      } else {
+        meta.textContent = `${top.length} pick${top.length === 1 ? "" : "s"} · ${placeCount} place${placeCount === 1 ? "" : "s"}`;
+      }
+    }
     if (!top.length) {
-      list.innerHTML = `<div class="empty">Nothing fits today’s budget. Raise budget or reset today’s log.</div>`;
+      list.innerHTML =
+        topN <= 0
+          ? `<div class="empty">You’ve logged all meals for today. Reset today’s log to pick again.</div>`
+          : `<div class="empty">Nothing fits today’s budget. Raise budget or reset today’s log.</div>`;
       return;
     }
 
