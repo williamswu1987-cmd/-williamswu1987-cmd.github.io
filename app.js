@@ -5,7 +5,12 @@
   const PREF_KEY = "protiva-pref-v1";
 
   const defaults = {
+    sex: "male",
+    age: 30,
     weightKg: 75,
+    heightCm: 175,
+    activity: "sometimes",
+    mealsPerDay: 3,
     kcal: 2200,
     protein: 140,
     budget: 25,
@@ -102,10 +107,49 @@
     return s;
   }
 
-  function mealProteinTarget(remainProtein) {
+  /**
+   * Mifflin–St Jeor BMR × activity → daily kcal; protein by g/kg × activity.
+   * Not medical advice — a practical default users can edit.
+   */
+  function suggestNutrition(profile) {
+    const weight = Number(profile.weightKg) || defaults.weightKg;
+    const height = Number(profile.heightCm) || defaults.heightCm;
+    const age = Number(profile.age) || defaults.age;
+    const sex = profile.sex || defaults.sex;
+    const activity = profile.activity || defaults.activity;
+
+    let bmr;
+    if (sex === "female") bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+    else if (sex === "male") bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+    else bmr = 10 * weight + 6.25 * height - 5 * age - 78;
+
+    const mult = { rare: 1.2, sometimes: 1.375, often: 1.55, intense: 1.725 }[activity] || 1.375;
+    let kcal = Math.round((bmr * mult) / 50) * 50;
+    kcal = Math.min(4500, Math.max(1200, kcal));
+
+    const pPerKg = { rare: 1.2, sometimes: 1.45, often: 1.8, intense: 2.05 }[activity] || 1.45;
+    const ageBoost = age >= 50 ? 0.15 : age >= 40 ? 0.05 : 0;
+    let protein = Math.round((weight * (pPerKg + ageBoost)) / 5) * 5;
+    protein = Math.min(300, Math.max(50, protein));
+
+    return { kcal, protein, bmr: Math.round(bmr), tdee: Math.round(bmr * mult) };
+  }
+
+  function mealProteinTarget(remainProtein, goals, log) {
     if (remainProtein <= 0) return 0;
-    // One meal should cover a meaningful chunk of what's left, without demanding all of it.
-    return Math.min(40, Math.max(22, remainProtein * 0.28));
+    const mealsPerDay = Number(goals?.mealsPerDay) || 3;
+    const eaten = Array.isArray(log?.items) ? log.items.length : 0;
+    const mealsLeft = Math.max(1, mealsPerDay - eaten);
+    // Spread remaining protein across meals still ahead today.
+    const perMeal = remainProtein / mealsLeft;
+    return Math.min(55, Math.max(18, perMeal));
+  }
+
+  function mealKcalBudget(remainKcal, goals, log) {
+    const mealsPerDay = Number(goals?.mealsPerDay) || 3;
+    const eaten = Array.isArray(log?.items) ? log.items.length : 0;
+    const mealsLeft = Math.max(1, mealsPerDay - eaten);
+    return remainKcal / mealsLeft;
   }
 
   function useSeedCatalog() {
@@ -144,7 +188,8 @@
     const remainKcal = Math.max(0, goals.kcal - log.kcal);
     const remainProtein = Math.max(0, goals.protein - log.protein);
     const remainBudget = Math.max(0, goals.budget - log.spent);
-    const proteinNeed = mealProteinTarget(remainProtein);
+    const proteinNeed = mealProteinTarget(remainProtein, goals, log);
+    const mealKcal = mealKcalBudget(remainKcal, goals, log);
 
     const enriched = flattenDishes()
       .filter((d) => dietOk(d, goals.diet))
@@ -155,8 +200,8 @@
         const pp = proteinPerEuro(d);
         const taste = tasteScore(d);
         const health = healthScore(d);
-        // Hard constraints the user asked for
-        const fitsKcal = k <= remainKcal + 25;
+        // Hard constraints: within remaining day budget, and roughly one-meal sized
+        const fitsKcal = k <= remainKcal + 25 && k <= mealKcal + 120;
         const fitsProtein = remainProtein <= 0 ? true : p >= proteinNeed - 3;
         const walk = d.restaurant.walkMin || 1;
 
@@ -299,21 +344,69 @@
   }
 
   function fillGoalsForm(goals) {
+    $("#sex").value = goals.sex || defaults.sex;
+    $("#age").value = goals.age ?? defaults.age;
     $("#weightKg").value = goals.weightKg;
+    $("#heightCm").value = goals.heightCm ?? defaults.heightCm;
+    $("#activity").value = goals.activity || defaults.activity;
+    $("#mealsPerDay").value = String(goals.mealsPerDay || defaults.mealsPerDay);
     $("#kcal").value = goals.kcal;
     $("#protein").value = goals.protein;
     $("#budget").value = goals.budget;
     $("#diet").value = goals.diet;
+    updateSuggestMeta(goals);
   }
 
-  function readGoalsForm() {
+  function readProfileFromForm() {
     return {
+      sex: $("#sex").value || defaults.sex,
+      age: Number($("#age").value) || defaults.age,
       weightKg: Number($("#weightKg").value) || defaults.weightKg,
-      kcal: Number($("#kcal").value) || defaults.kcal,
-      protein: Number($("#protein").value) || defaults.protein,
+      heightCm: Number($("#heightCm").value) || defaults.heightCm,
+      activity: $("#activity").value || defaults.activity,
+      mealsPerDay: Number($("#mealsPerDay").value) || defaults.mealsPerDay,
       budget: Number($("#budget").value) || defaults.budget,
       diet: $("#diet").value || "none",
     };
+  }
+
+  function readGoalsForm() {
+    const profile = readProfileFromForm();
+    return {
+      ...profile,
+      kcal: Number($("#kcal").value) || defaults.kcal,
+      protein: Number($("#protein").value) || defaults.protein,
+    };
+  }
+
+  function activityLabel(activity) {
+    return (
+      {
+        rare: "很少运动",
+        sometimes: "偶尔运动",
+        often: "经常健身",
+        intense: "高强度训练",
+      }[activity] || activity
+    );
+  }
+
+  function updateSuggestMeta(profile) {
+    const s = suggestNutrition(profile);
+    const meals = profile.mealsPerDay || 3;
+    const el = $("#suggestMeta");
+    if (el) {
+      el.textContent = `BMR≈${s.bmr} · 维持≈${s.tdee} kcal · ${meals} 餐/天 · ${activityLabel(profile.activity)}`;
+    }
+  }
+
+  function applySuggestedNutrition({ toastMsg = true } = {}) {
+    const profile = readProfileFromForm();
+    const s = suggestNutrition(profile);
+    $("#kcal").value = s.kcal;
+    $("#protein").value = s.protein;
+    updateSuggestMeta(profile);
+    if (toastMsg) toast(`已按资料估算：${s.kcal} kcal / ${s.protein}g 蛋白`);
+    return s;
   }
 
   function setRankLoading(msg) {
@@ -330,6 +423,15 @@
     $("#remainKcal").textContent = remainKcal;
     $("#remainProtein").textContent = remainProtein;
     $("#remainBudget").textContent = remainBudget;
+
+    const homeLede = $("#homeLede");
+    if (homeLede) {
+      const meals = goals.mealsPerDay || 3;
+      const eaten = log.items?.length || 0;
+      const left = Math.max(0, meals - eaten);
+      homeLede.textContent = `今日 ${meals} 餐制 · 已记 ${eaten} 餐 · 还剩 ${left} 餐额度。先满足：不超卡 · 蛋白够；偏好可切换。`;
+    }
+
     updateLocationChip();
 
     if (locating) {
@@ -441,7 +543,12 @@
   function applyDemoPitch() {
     useSeedCatalog();
     const goals = {
+      sex: "male",
+      age: 30,
       weightKg: 75,
+      heightCm: 175,
+      activity: "often",
+      mealsPerDay: 3,
       kcal: 2200,
       protein: 160,
       budget: 25,
@@ -565,7 +672,19 @@
     $("#btnStart").addEventListener("click", () => {
       fillGoalsForm(goals);
       showScreen("screen-goals");
+      // First-time profile: auto-fill suggested targets from defaults/profile
+      if (!localStorage.getItem(STORAGE_KEY)) applySuggestedNutrition({ toastMsg: false });
     });
+
+    ["sex", "age", "weightKg", "heightCm", "activity", "mealsPerDay"].forEach((id) => {
+      $(`#${id}`)?.addEventListener("change", () => {
+        applySuggestedNutrition({ toastMsg: false });
+      });
+      $(`#${id}`)?.addEventListener("input", () => {
+        updateSuggestMeta(readProfileFromForm());
+      });
+    });
+    $("#btnRecalc")?.addEventListener("click", () => applySuggestedNutrition({ toastMsg: true }));
 
     $("#btnSkipDemo").addEventListener("click", async () => {
       if (!localStorage.getItem(STORAGE_KEY)) saveGoals(defaults);

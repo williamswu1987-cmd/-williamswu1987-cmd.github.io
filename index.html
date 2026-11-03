@@ -56,17 +56,58 @@
         </div>
         <div class="panel">
           <h2>设一次目标</h2>
-          <p class="lede">体重、热量、蛋白、预算、忌口。保存后会请求定位并搜索附近餐厅。</p>
+          <p class="lede">先填身体与餐次，我们会估算每日热量和蛋白；你仍可手动微调。</p>
           <form id="goalsForm">
+            <div class="grid-2">
+              <div class="field">
+                <label for="sex">性别</label>
+                <select id="sex" required>
+                  <option value="male">男</option>
+                  <option value="female">女</option>
+                  <option value="other">其他 / 不愿透露</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="age">年龄</label>
+                <input id="age" type="number" min="14" max="90" step="1" required />
+              </div>
+            </div>
             <div class="grid-2">
               <div class="field">
                 <label for="weightKg">体重 (kg)</label>
                 <input id="weightKg" type="number" min="35" max="200" step="1" required />
               </div>
               <div class="field">
+                <label for="heightCm">身高 (cm)</label>
+                <input id="heightCm" type="number" min="140" max="220" step="1" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="activity">运动习惯</label>
+              <select id="activity" required>
+                <option value="rare">很少运动（久坐为主）</option>
+                <option value="sometimes">偶尔运动（每周 1–2 次）</option>
+                <option value="often">经常健身（每周 3–5 次）</option>
+                <option value="intense">高强度训练（几乎每天）</option>
+              </select>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="mealsPerDay">每天几餐</label>
+                <select id="mealsPerDay" required>
+                  <option value="2">两餐</option>
+                  <option value="3">三餐</option>
+                  <option value="4">四餐（含加餐）</option>
+                </select>
+              </div>
+              <div class="field">
                 <label for="budget">每餐预算 (€)</label>
                 <input id="budget" type="number" min="3" max="80" step="0.5" required />
               </div>
+            </div>
+            <div class="suggest-box" id="suggestBox">
+              <p class="suggest-title">建议目标 <span id="suggestMeta"></span></p>
+              <button class="cta light" id="btnRecalc" type="button">按资料重算热量 / 蛋白</button>
             </div>
             <div class="grid-2">
               <div class="field">
@@ -87,6 +128,7 @@
                 <option value="veg">素食（含蛋奶）</option>
               </select>
             </div>
+            <p class="note">估算基于 Mifflin–St Jeor，仅供参考，不能替代医生或营养师建议。</p>
             <button class="cta" type="submit">保存并用定位推荐</button>
           </form>
         </div>
@@ -103,7 +145,7 @@
         </div>
         <div class="panel">
           <h2>今日还剩</h2>
-          <p class="lede">先满足：好吃 · 不超卡 · 蛋白够。下面可选排序偏好。</p>
+          <p class="lede" id="homeLede">先满足：好吃 · 不超卡 · 蛋白够。下面可选排序偏好。</p>
           <p class="quota" id="quotaLine">今日免费定位查询还剩 — 次</p>
           <div class="budget">
             <div class="budget-item">
