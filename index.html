@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#062a32" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Protiva" />
+    <meta
+      name="description"
+      content="Protiva — 开定位，推好吃、不超卡、蛋白够的附近一盘。性价比可选。"
+    />
+    <title>Protiva · 附近好饭</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;550;650;700&family=Syne:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <!-- Hero -->
+      <section class="screen hero active" id="screen-hero">
+        <div class="hero-visual">
+          <img
+            src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80"
+            alt="Grilled seafood plate"
+          />
+        </div>
+        <div class="hero-copy">
+          <p class="brand">Proti<span>va</span></p>
+          <h1>到饭点，推附近好吃又健康的那一盘</h1>
+          <p>不超卡、蛋白够。性价比只是可选项。有网开定位，哪里都能用。</p>
+          <button class="cta" id="btnLocateHero" type="button">开启定位，看附近 Top 3</button>
+          <button class="cta secondary" id="btnStart" type="button">先设置今日目标</button>
+          <button class="cta secondary" id="btnSkipDemo" type="button">先看演示（可稍后定位）</button>
+          <button class="cta secondary" id="btnInstall" type="button" hidden>安装到手机主屏幕</button>
+          <p class="install-hint" id="installHint">
+            iPhone：Safari 打开 → 分享 →「添加到主屏幕」
+          </p>
+        </div>
+      </section>
+
+      <!-- Goals -->
+      <section class="screen" id="screen-goals">
+        <div class="topbar">
+          <div class="logo">Proti<span>va</span></div>
+          <div class="chip loc-chip"><span class="dot"></span> 目标</div>
+        </div>
+        <div class="panel">
+          <h2>设一次目标</h2>
+          <p class="lede">体重、热量、蛋白、预算、忌口。保存后会请求定位并搜索附近餐厅。</p>
+          <form id="goalsForm">
+            <div class="grid-2">
+              <div class="field">
+                <label for="weightKg">体重 (kg)</label>
+                <input id="weightKg" type="number" min="35" max="200" step="1" required />
+              </div>
+              <div class="field">
+                <label for="budget">每餐预算 (€)</label>
+                <input id="budget" type="number" min="3" max="80" step="0.5" required />
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="kcal">每日卡路里</label>
+                <input id="kcal" type="number" min="1200" max="4500" step="50" required />
+              </div>
+              <div class="field">
+                <label for="protein">每日蛋白 (g)</label>
+                <input id="protein" type="number" min="40" max="300" step="5" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="diet">忌口</label>
+              <select id="diet">
+                <option value="none">无限制</option>
+                <option value="no-pork">不吃猪肉</option>
+                <option value="pescatarian">海鲜蛋奶素</option>
+                <option value="veg">素食（含蛋奶）</option>
+              </select>
+            </div>
+            <button class="cta" type="submit">保存并用定位推荐</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Home -->
+      <section class="screen" id="screen-home">
+        <div class="topbar">
+          <div class="logo">Proti<span>va</span></div>
+          <div class="topbar-right">
+            <button type="button" class="chip plan-chip" id="btnPlan">Free</button>
+            <div class="chip loc-chip"><span class="dot"></span> 定位中</div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>今日还剩</h2>
+          <p class="lede">先满足：好吃 · 不超卡 · 蛋白够。下面可选排序偏好。</p>
+          <p class="quota" id="quotaLine">今日免费定位查询还剩 — 次</p>
+          <div class="budget">
+            <div class="budget-item">
+              <div class="label">卡路里</div>
+              <div class="value"><span id="remainKcal">—</span><small> kcal</small></div>
+            </div>
+            <div class="budget-item">
+              <div class="label">蛋白</div>
+              <div class="value"><span id="remainProtein">—</span><small> g</small></div>
+            </div>
+            <div class="budget-item">
+              <div class="label">预算</div>
+              <div class="value">€<span id="remainBudget">—</span></div>
+            </div>
+          </div>
+
+          <div class="pref-block">
+            <div class="field" style="margin-bottom: 8px">
+              <label>推荐偏好</label>
+            </div>
+            <div class="pref-row" role="radiogroup" aria-label="推荐偏好">
+              <button type="button" class="pref-btn active" data-pref="tasty">好吃优先</button>
+              <button type="button" class="pref-btn" data-pref="protein">蛋白优先</button>
+              <button type="button" class="pref-btn" data-pref="nearby">最近</button>
+              <button type="button" class="pref-btn" data-pref="value">性价比</button>
+            </div>
+          </div>
+
+          <div class="section-label">
+            <h3>附近 Top 3</h3>
+            <span id="placesMeta">—</span>
+          </div>
+          <div class="rank-list" id="rankList"></div>
+
+          <div class="actions" style="margin-top: 16px">
+            <button class="cta" id="btnUseLocation" type="button">用我的定位刷新</button>
+            <button class="cta light" id="btnOpenPro" type="button">升级 Protiva Pro</button>
+            <button class="cta light" id="btnUseDemo" type="button">改用 Tivat 演示菜单</button>
+            <button class="cta light" id="btnDemoPitch" type="button">演示剧本：剩 1050 卡 / 120g 蛋白</button>
+            <button class="cta light" id="btnEditGoals" type="button">改目标</button>
+            <button class="cta light" id="btnResetToday" type="button">重置今日记录</button>
+          </div>
+          <p class="note" id="dataNote">有网并允许定位后，会搜索你附近的餐厅。</p>
+          <p class="note legal-links">
+            <a href="privacy.html">隐私政策</a> · <a href="terms.html">使用条款</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- Pro paywall -->
+      <div class="overlay" id="paywall" aria-hidden="true">
+        <div class="sheet paywall-sheet" role="dialog" aria-modal="true" aria-labelledby="paywallTitle">
+          <div class="sheet-handle"></div>
+          <h2 id="paywallTitle">Protiva Pro</h2>
+          <p class="place">解锁无限定位推荐，把「好吃 · 不超卡 · 蛋白够」用成日常习惯。</p>
+          <ul class="pro-perks">
+            <li>无限次附近 Top 3 刷新</li>
+            <li>保留全部推荐偏好（好吃 / 蛋白 / 最近 / 性价比）</li>
+            <li>优先支持后续真实菜单与营养校准</li>
+            <li>无广告（上架后保持清爽）</li>
+          </ul>
+          <p class="note" id="paywallQuota"></p>
+          <div class="actions">
+            <button class="cta" id="btnBuyYearly" type="button">年付 · €29.99（更划算）</button>
+            <button class="cta light" id="btnBuyMonthly" type="button">月付 · €4.99</button>
+            <button class="cta light" id="btnRestore" type="button">恢复购买</button>
+            <button class="cta light" id="btnClosePaywall" type="button">继续免费版</button>
+          </div>
+          <p class="note">App Store 内购上架后走苹果支付。当前网页/测试包为模拟开通，方便你先验证商业流程。</p>
+        </div>
+      </div>
+
+      <!-- Detail sheet -->
+      <div class="overlay" id="overlay" aria-hidden="true">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+          <div class="sheet-handle"></div>
+          <h2 id="sheetTitle">Dish</h2>
+          <div class="place" id="sheetPlace"></div>
+          <div class="stats">
+            <div class="stat"><div class="k">好吃</div><div class="v" id="statTaste">—</div></div>
+            <div class="stat"><div class="k">蛋白</div><div class="v" id="statProtein">—</div></div>
+            <div class="stat"><div class="k">热量</div><div class="v" id="statKcal">—</div></div>
+            <div class="stat"><div class="k">价格</div><div class="v" id="statPrice">—</div></div>
+          </div>
+          <p class="note" id="valueHint" style="margin-top: 0">蛋白性价比约 <strong id="statPp">—</strong> g/€（仅供参考，不是默认排序）</p>
+          <div class="phrase">
+            <div class="label">给服务员看 · 点餐句</div>
+            <p id="askLocal"></p>
+          </div>
+          <p class="confidence" id="confidence"></p>
+          <div class="actions">
+            <button class="cta" id="btnNavigate" type="button">步行导航</button>
+            <button class="cta light" id="btnCopyPhrase" type="button">复制点餐句</button>
+            <button class="cta coral" id="btnLogMeal" type="button">吃完了 · 扣今日额度</button>
+            <button class="cta light" id="btnCloseSheet" type="button">关闭</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast" role="status"></div>
+    </div>
+
+    <script src="data/menus.js"></script>
+    <script src="data/cuisine-templates.js"></script>
+    <script src="geo.js"></script>
+    <script src="monetization.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

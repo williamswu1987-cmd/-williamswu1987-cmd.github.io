@@ -1,0 +1,13 @@
+{
+  "appId": "app.protiva.meal",
+  "appName": "Protiva",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true
+    }
+  }
+}

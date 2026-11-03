@@ -1,0 +1,33 @@
+{
+  "name": "Protiva",
+  "short_name": "Protiva",
+  "description": "到饭点推附近好吃、不超卡、蛋白够的那一盘。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#062a32",
+  "theme_color": "#062a32",
+  "lang": "zh-Hans",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["food", "health", "lifestyle"]
+}
