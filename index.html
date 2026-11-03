@@ -113,6 +113,25 @@
               <p class="suggest-title">建议目标 <span id="suggestMeta"></span></p>
               <button class="cta light" id="btnRecalc" type="button">按资料重算热量 / 蛋白</button>
             </div>
+            <div class="calib-box" id="calibBox">
+              <p class="suggest-title">体重校准维持热量 <span id="calibMeta"></span></p>
+              <p class="note" style="margin-top: 0">公式只是起点。连续称重 + 尽量记录吃饭，可反推更准的个人维持。</p>
+              <div class="grid-2">
+                <div class="field" style="margin-bottom: 8px">
+                  <label for="weighInKg">本次体重 (kg)</label>
+                  <input id="weighInKg" type="number" min="35" max="200" step="0.1" inputmode="decimal" />
+                </div>
+                <div class="field" style="margin-bottom: 8px; display: flex; align-items: flex-end">
+                  <button type="button" class="cta light" id="btnLogWeighIn" style="width: 100%">记下体重</button>
+                </div>
+              </div>
+              <ul class="weigh-list" id="weighInList"></ul>
+              <p class="note" id="calibHint">至少间隔约 10 天、记满 2 次体重后，才会给出校准维持。</p>
+              <div class="actions" style="margin-top: 8px">
+                <button type="button" class="cta light" id="btnApplyCalib" hidden>用校准维持重算摄入</button>
+                <button type="button" class="cta light" id="btnClearCalib" hidden>改回公式维持</button>
+              </div>
+            </div>
             <div class="grid-2">
               <div class="field">
                 <label for="kcal">每日摄入卡路里</label>

@@ -3,6 +3,7 @@
   const LOG_KEY = "protiva-log-v1";
   const MODE_KEY = "protiva-mode-v1";
   const PREF_KEY = "protiva-pref-v1";
+  const WEIGH_KEY = "protiva-weighins-v1";
 
   const defaults = {
     sex: "male",
@@ -17,6 +18,9 @@
     diet: "none",
     /** Daily calorie deficit target (kcal). Recommend 500–700; soft-cap 750. */
     deficitTarget: 600,
+    /** Personal TDEE from weigh-in calibration; optional override of formula. */
+    calibratedTdee: null,
+    useCalibratedTdee: false,
   };
 
   const DEFICIT_MIN = 300;
@@ -117,12 +121,126 @@
     return s;
   }
 
+  function loadWeighIns() {
+    try {
+      const list = JSON.parse(localStorage.getItem(WEIGH_KEY) || "[]");
+      return Array.isArray(list)
+        ? list
+            .filter((w) => w && w.date && Number(w.kg) > 0)
+            .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveWeighIns(list) {
+    localStorage.setItem(WEIGH_KEY, JSON.stringify(list.slice(-40)));
+  }
+
+  function daysBetween(dateA, dateB) {
+    const a = new Date(`${dateA}T12:00:00`);
+    const b = new Date(`${dateB}T12:00:00`);
+    return Math.max(0, Math.round((b - a) / 86400000));
+  }
+
+  function loadAllLogs() {
+    try {
+      return JSON.parse(localStorage.getItem(LOG_KEY) || "{}") || {};
+    } catch {
+      return {};
+    }
+  }
+
+  /** Average logged intake between two dates (inclusive of start, exclusive of end day for meal period). */
+  function avgIntakeBetween(startDate, endDate) {
+    const all = loadAllLogs();
+    const days = daysBetween(startDate, endDate);
+    if (days <= 0) return { avg: 0, loggedDays: 0, days: 0 };
+    let sum = 0;
+    let loggedDays = 0;
+    const cursor = new Date(`${startDate}T12:00:00`);
+    for (let i = 0; i < days; i++) {
+      const key = cursor.toISOString().slice(0, 10);
+      const day = all[key];
+      const k = Number(day?.kcal) || 0;
+      if (k > 0) {
+        sum += k;
+        loggedDays += 1;
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    const avg = loggedDays > 0 ? sum / loggedDays : 0;
+    return { avg, loggedDays, days, sum };
+  }
+
   /**
-   * Mifflin–St Jeor BMR × activity → TDEE (maintenance).
-   * Daily intake kcal = TDEE − deficitTarget (fat-loss gap).
-   * Not medical advice — a practical default users can edit.
+   * Weigh-in calibration:
+   * maintenance ≈ avgIntake + (Δkg × 7700) / days
+   * Needs ≥2 weigh-ins spanning ≥10 days.
    */
-  function suggestNutrition(profile) {
+  function computeCalibration(profile) {
+    const formula = suggestNutritionFormula(profile);
+    const weighIns = loadWeighIns();
+    if (weighIns.length < 2) {
+      return {
+        ready: false,
+        reason: "need-weighins",
+        formulaTdee: formula.tdee,
+        weighIns,
+        message: `已记 ${weighIns.length} 次体重。再记一次（间隔约 10 天以上）即可校准。`,
+      };
+    }
+    const first = weighIns[weighIns.length - 2];
+    const last = weighIns[weighIns.length - 1];
+    // Prefer earliest → latest spanning window if more history
+    const start = weighIns[0];
+    const end = weighIns[weighIns.length - 1];
+    const useStart = daysBetween(start.date, end.date) >= 10 ? start : first;
+    const useEnd = end;
+    const days = daysBetween(useStart.date, useEnd.date);
+    if (days < 10) {
+      return {
+        ready: false,
+        reason: "too-soon",
+        formulaTdee: formula.tdee,
+        weighIns,
+        days,
+        message: `最近两次间隔 ${days} 天。建议至少约 10 天（更理想 14–21 天）再校准。`,
+      };
+    }
+    const intake = avgIntakeBetween(useStart.date, useEnd.date);
+    const fallbackIntake = Number(profile?.kcal) || formula.kcal + clampDeficit(profile?.deficitTarget);
+    const avgIntake = intake.loggedDays >= Math.min(5, Math.ceil(days * 0.4))
+      ? intake.avg
+      : fallbackIntake;
+    const usedFallback = avgIntake === fallbackIntake && intake.loggedDays < Math.min(5, Math.ceil(days * 0.4));
+    const deltaKg = Number(useEnd.kg) - Number(useStart.kg);
+    const raw = avgIntake + (deltaKg * 7700) / days;
+    let tdee = Math.round(raw / 50) * 50;
+    tdee = Math.min(4500, Math.max(1200, tdee));
+    const weeklyRate = (deltaKg / days) * 7;
+    return {
+      ready: true,
+      formulaTdee: formula.tdee,
+      tdee,
+      days,
+      deltaKg: Math.round(deltaKg * 10) / 10,
+      weeklyRate: Math.round(weeklyRate * 100) / 100,
+      avgIntake: Math.round(avgIntake),
+      loggedDays: intake.loggedDays,
+      usedFallback,
+      weighIns,
+      start: useStart,
+      end: useEnd,
+      message: usedFallback
+        ? `校准维持≈${tdee} kcal（体重 ${useStart.kg}→${useEnd.kg} kg / ${days} 天；吃饭记录偏少，摄入按档案估算）。`
+        : `校准维持≈${tdee} kcal（体重 ${useStart.kg}→${useEnd.kg} kg / ${days} 天；日均摄入≈${Math.round(avgIntake)}）。`,
+    };
+  }
+
+  /** Formula-only TDEE (ignores calibration flags). */
+  function suggestNutritionFormula(profile) {
     const weight = Number(profile.weightKg) || defaults.weightKg;
     const height = Number(profile.heightCm) || defaults.heightCm;
     const age = Number(profile.age) || defaults.age;
@@ -137,7 +255,6 @@
 
     const mult = { rare: 1.2, sometimes: 1.375, often: 1.55, intense: 1.725 }[activity] || 1.375;
     const tdee = Math.round(bmr * mult);
-    // Intake target = maintenance minus chosen fat-loss deficit
     let kcal = Math.round((tdee - deficit) / 50) * 50;
     kcal = Math.min(4500, Math.max(1200, kcal));
 
@@ -146,7 +263,30 @@
     let protein = Math.round((weight * (pPerKg + ageBoost)) / 5) * 5;
     protein = Math.min(300, Math.max(50, protein));
 
-    return { kcal, protein, bmr: Math.round(bmr), tdee, deficit };
+    return { kcal, protein, bmr: Math.round(bmr), tdee, deficit, formulaTdee: tdee, calibrated: false };
+  }
+
+  /**
+   * Mifflin–St Jeor BMR × activity → TDEE (maintenance), optionally overridden
+   * by weigh-in calibration. Daily intake = TDEE − deficitTarget.
+   */
+  function suggestNutrition(profile) {
+    const base = suggestNutritionFormula(profile);
+    const deficit = base.deficit;
+    const calibratedTdee = Number(profile.calibratedTdee);
+    const useCalib =
+      !!profile.useCalibratedTdee && Number.isFinite(calibratedTdee) && calibratedTdee >= 1200;
+    const tdee = useCalib ? Math.round(calibratedTdee) : base.tdee;
+    let kcal = Math.round((tdee - deficit) / 50) * 50;
+    kcal = Math.min(4500, Math.max(1200, kcal));
+    return {
+      ...base,
+      kcal,
+      tdee,
+      formulaTdee: base.tdee,
+      calibrated: useCalib,
+      deficit,
+    };
   }
 
   function mealProteinTarget(remainProtein, goals, log) {
@@ -478,6 +618,7 @@
     }
     updateSuggestMeta(goals);
     updateDeficitHint();
+    renderCalibPanel();
   }
 
   function readProfileFromForm() {
@@ -495,12 +636,15 @@
   }
 
   function readGoalsForm() {
+    const saved = loadGoals();
     const profile = readProfileFromForm();
     return {
       ...profile,
       kcal: Number($("#kcal").value) || defaults.kcal,
       protein: Number($("#protein").value) || defaults.protein,
       deficitTarget: clampDeficit($("#deficitTarget")?.value || defaults.deficitTarget),
+      calibratedTdee: saved.calibratedTdee ?? null,
+      useCalibratedTdee: !!saved.useCalibratedTdee,
     };
   }
 
@@ -530,24 +674,126 @@
   }
 
   function updateSuggestMeta(profile) {
-    const s = suggestNutrition(profile);
+    const s = suggestNutrition({ ...loadGoals(), ...profile });
     const meals = profile.mealsPerDay || 3;
     const el = $("#suggestMeta");
     if (el) {
-      el.textContent = `BMR≈${s.bmr} · 维持≈${s.tdee} · 摄入≈${s.kcal}（差−${s.deficit}）· ${meals} 餐/天 · ${activityLabel(profile.activity)}`;
+      const src = s.calibrated ? "校准维持" : "公式维持";
+      el.textContent = `BMR≈${s.bmr} · ${src}≈${s.tdee} · 摄入≈${s.kcal}（差−${s.deficit}）· ${meals} 餐/天 · ${activityLabel(profile.activity)}`;
     }
   }
 
+  function renderCalibPanel() {
+    const goals = { ...loadGoals(), ...readProfileFromForm() };
+    const calib = computeCalibration(goals);
+    const meta = $("#calibMeta");
+    const hint = $("#calibHint");
+    const list = $("#weighInList");
+    const applyBtn = $("#btnApplyCalib");
+    const clearBtn = $("#btnClearCalib");
+    const weighInput = $("#weighInKg");
+
+    if (weighInput && document.activeElement !== weighInput) {
+      weighInput.value = goals.weightKg || "";
+    }
+
+    if (list) {
+      const recent = [...(calib.weighIns || [])].slice(-5).reverse();
+      list.innerHTML = recent.length
+        ? recent.map((w) => `<li><span>${w.date}</span><strong>${Number(w.kg).toFixed(1)} kg</strong></li>`).join("")
+        : `<li class="empty-li">还没有体重记录</li>`;
+    }
+
+    if (meta) {
+      if (goals.useCalibratedTdee && goals.calibratedTdee) {
+        meta.textContent = `使用中 · ${goals.calibratedTdee} kcal`;
+      } else if (calib.ready) {
+        meta.textContent = `可校准 · ${calib.tdee} kcal`;
+      } else {
+        meta.textContent = "公式估算中";
+      }
+    }
+
+    if (hint) hint.textContent = calib.message;
+
+    if (applyBtn) {
+      applyBtn.hidden = !calib.ready;
+      applyBtn.dataset.tdee = calib.ready ? String(calib.tdee) : "";
+    }
+    if (clearBtn) {
+      clearBtn.hidden = !goals.useCalibratedTdee;
+    }
+    return calib;
+  }
+
   function applySuggestedNutrition({ toastMsg = true } = {}) {
-    const profile = readProfileFromForm();
+    const saved = loadGoals();
+    const profile = { ...saved, ...readProfileFromForm() };
     const s = suggestNutrition(profile);
     $("#kcal").value = s.kcal;
     $("#protein").value = s.protein;
     updateSuggestMeta(profile);
+    renderCalibPanel();
     if (toastMsg) {
-      toast(`已按资料估算：摄入 ${s.kcal} kcal（维持 ${s.tdee} − 差 ${s.deficit}）/ ${s.protein}g 蛋白`);
+      const src = s.calibrated ? "校准" : "公式";
+      toast(`已按资料估算：摄入 ${s.kcal} kcal（${src}维持 ${s.tdee} − 差 ${s.deficit}）/ ${s.protein}g 蛋白`);
     }
     return s;
+  }
+
+  function logWeighIn() {
+    const kg = Number($("#weighInKg")?.value);
+    if (!Number.isFinite(kg) || kg < 35 || kg > 200) {
+      toast("请填写有效体重（kg）");
+      return;
+    }
+    const date = todayKey();
+    const list = loadWeighIns().filter((w) => w.date !== date);
+    list.push({ date, kg: Math.round(kg * 10) / 10, at: Date.now() });
+    saveWeighIns(list);
+    if ($("#weightKg")) $("#weightKg").value = String(Math.round(kg * 10) / 10);
+    const goals = loadGoals();
+    goals.weightKg = Math.round(kg * 10) / 10;
+    saveGoals(goals);
+    renderCalibPanel();
+    updateSuggestMeta({ ...goals, ...readProfileFromForm() });
+    toast(`已记下 ${date} · ${kg.toFixed(1)} kg`);
+  }
+
+  function applyCalibration() {
+    const calib = computeCalibration({ ...loadGoals(), ...readProfileFromForm() });
+    if (!calib.ready) {
+      toast(calib.message || "还不能校准");
+      return;
+    }
+    const goals = loadGoals();
+    goals.calibratedTdee = calib.tdee;
+    goals.useCalibratedTdee = true;
+    if (calib.end?.kg) goals.weightKg = Number(calib.end.kg);
+    saveGoals(goals);
+    if ($("#weightKg") && calib.end?.kg) $("#weightKg").value = String(calib.end.kg);
+    applySuggestedNutrition({ toastMsg: false });
+    // Persist intake fields into goals snapshot
+    const next = readGoalsForm();
+    next.calibratedTdee = calib.tdee;
+    next.useCalibratedTdee = true;
+    saveGoals(next);
+    renderCalibPanel();
+    toast(`已改用校准维持 ${calib.tdee} kcal，摄入已重算`);
+  }
+
+  function clearCalibration() {
+    const goals = loadGoals();
+    goals.useCalibratedTdee = false;
+    goals.calibratedTdee = null;
+    saveGoals(goals);
+    applySuggestedNutrition({ toastMsg: false });
+    const next = readGoalsForm();
+    next.useCalibratedTdee = false;
+    next.calibratedTdee = null;
+    saveGoals(next);
+    renderCalibPanel();
+    toast("已改回公式维持热量");
   }
 
   function setRankLoading(msg) {
@@ -1070,6 +1316,9 @@
       updateDeficitHint();
       applySuggestedNutrition({ toastMsg: false });
     });
+    $("#btnLogWeighIn")?.addEventListener("click", logWeighIn);
+    $("#btnApplyCalib")?.addEventListener("click", applyCalibration);
+    $("#btnClearCalib")?.addEventListener("click", clearCalibration);
 
     const stepsInput = $("#todaySteps");
     const persistSteps = () => {

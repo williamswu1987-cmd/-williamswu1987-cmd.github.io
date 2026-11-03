@@ -533,12 +533,54 @@ img {
   gap: 10px;
 }
 
-.suggest-box {
+.suggest-box,
+.calib-box {
   margin: 4px 0 14px;
   padding: 12px;
   border: 1px dashed rgba(14, 79, 95, 0.28);
   border-radius: 14px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.7), rgba(231, 247, 245, 0.55));
+}
+
+.calib-box {
+  border-style: solid;
+  border-color: rgba(14, 79, 95, 0.16);
+}
+
+.weigh-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.weigh-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  font-size: 0.84rem;
+}
+
+.weigh-list li span {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.weigh-list li strong {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.weigh-list .empty-li {
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
 .suggest-title {
