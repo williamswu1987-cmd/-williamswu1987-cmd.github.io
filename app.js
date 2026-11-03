@@ -118,7 +118,8 @@
   }
 
   /**
-   * Mifflin–St Jeor BMR × activity → daily kcal; protein by g/kg × activity.
+   * Mifflin–St Jeor BMR × activity → TDEE (maintenance).
+   * Daily intake kcal = TDEE − deficitTarget (fat-loss gap).
    * Not medical advice — a practical default users can edit.
    */
   function suggestNutrition(profile) {
@@ -127,6 +128,7 @@
     const age = Number(profile.age) || defaults.age;
     const sex = profile.sex || defaults.sex;
     const activity = profile.activity || defaults.activity;
+    const deficit = clampDeficit(profile.deficitTarget ?? defaults.deficitTarget);
 
     let bmr;
     if (sex === "female") bmr = 10 * weight + 6.25 * height - 5 * age - 161;
@@ -134,7 +136,9 @@
     else bmr = 10 * weight + 6.25 * height - 5 * age - 78;
 
     const mult = { rare: 1.2, sometimes: 1.375, often: 1.55, intense: 1.725 }[activity] || 1.375;
-    let kcal = Math.round((bmr * mult) / 50) * 50;
+    const tdee = Math.round(bmr * mult);
+    // Intake target = maintenance minus chosen fat-loss deficit
+    let kcal = Math.round((tdee - deficit) / 50) * 50;
     kcal = Math.min(4500, Math.max(1200, kcal));
 
     const pPerKg = { rare: 1.2, sometimes: 1.45, often: 1.8, intense: 2.05 }[activity] || 1.45;
@@ -142,7 +146,7 @@
     let protein = Math.round((weight * (pPerKg + ageBoost)) / 5) * 5;
     protein = Math.min(300, Math.max(50, protein));
 
-    return { kcal, protein, bmr: Math.round(bmr), tdee: Math.round(bmr * mult) };
+    return { kcal, protein, bmr: Math.round(bmr), tdee, deficit };
   }
 
   function mealProteinTarget(remainProtein, goals, log) {
@@ -486,6 +490,7 @@
       mealsPerDay: Number($("#mealsPerDay").value) || defaults.mealsPerDay,
       budget: Number($("#budget").value) || defaults.budget,
       diet: $("#diet").value || "none",
+      deficitTarget: clampDeficit($("#deficitTarget")?.value || defaults.deficitTarget),
     };
   }
 
@@ -529,7 +534,7 @@
     const meals = profile.mealsPerDay || 3;
     const el = $("#suggestMeta");
     if (el) {
-      el.textContent = `BMR≈${s.bmr} · 维持≈${s.tdee} kcal · ${meals} 餐/天 · ${activityLabel(profile.activity)}`;
+      el.textContent = `BMR≈${s.bmr} · 维持≈${s.tdee} · 摄入≈${s.kcal}（差−${s.deficit}）· ${meals} 餐/天 · ${activityLabel(profile.activity)}`;
     }
   }
 
@@ -539,7 +544,9 @@
     $("#kcal").value = s.kcal;
     $("#protein").value = s.protein;
     updateSuggestMeta(profile);
-    if (toastMsg) toast(`已按资料估算：${s.kcal} kcal / ${s.protein}g 蛋白`);
+    if (toastMsg) {
+      toast(`已按资料估算：摄入 ${s.kcal} kcal（维持 ${s.tdee} − 差 ${s.deficit}）/ ${s.protein}g 蛋白`);
+    }
     return s;
   }
 
@@ -1059,7 +1066,10 @@
       });
     });
     $("#btnRecalc")?.addEventListener("click", () => applySuggestedNutrition({ toastMsg: true }));
-    $("#deficitTarget")?.addEventListener("change", updateDeficitHint);
+    $("#deficitTarget")?.addEventListener("change", () => {
+      updateDeficitHint();
+      applySuggestedNutrition({ toastMsg: false });
+    });
 
     const stepsInput = $("#todaySteps");
     const persistSteps = () => {
