@@ -1,6 +1,6 @@
 {
   "appId": "app.protiva.meal",
-  "appName": "Protiva",
+  "appName": "Prota",
   "webDir": "www",
   "server": {
     "androidScheme": "https"

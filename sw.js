@@ -1,5 +1,5 @@
-/* Protiva service worker — app shell offline; live map APIs always network. */
-const CACHE = "protiva-shell-v10";
+/* Prota service worker — app shell offline; live map APIs always network. */
+const CACHE = "protiva-shell-v11";
 const SHELL = [
   "./",
   "./index.html",

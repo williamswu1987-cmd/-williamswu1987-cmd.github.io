@@ -608,7 +608,7 @@
     const quota = $("#quotaLine");
     if (quota && window.ProtivaPay) {
       if (pro) {
-        quota.textContent = "Protiva Pro · 无限定位查询";
+        quota.textContent = "Prota Pro · 无限定位查询";
       } else {
         const left = window.ProtivaPay.remainingLookups();
         quota.textContent = `今日免费定位查询还剩 ${left} / ${window.ProtivaPay.FREE_DAILY_LOOKUPS} 次`;
