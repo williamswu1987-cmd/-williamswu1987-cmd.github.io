@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#062a32" />
     <meta
       name="description"
-      content="Protiva — 开定位，推附近蛋白性价比最高的那一盘。哪里都能用。"
+      content="Protiva — 开定位，推好吃、不超卡、蛋白够的附近一盘。性价比可选。"
     />
-    <title>Protiva · 附近蛋白</title>
+    <title>Protiva · 附近好饭</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -29,8 +29,8 @@
         </div>
         <div class="hero-copy">
           <p class="brand">Proti<span>va</span></p>
-          <h1>到饭点，推附近蛋白性价比最高的那一盘</h1>
-          <p>有网、开定位，哪里都能用。不用自己算，吃在卡路里里。</p>
+          <h1>到饭点，推附近好吃又健康的那一盘</h1>
+          <p>不超卡、蛋白够。性价比只是可选项。有网开定位，哪里都能用。</p>
           <button class="cta" id="btnLocateHero" type="button">开启定位，看附近 Top 3</button>
           <button class="cta secondary" id="btnStart" type="button">先设置今日目标</button>
           <button class="cta secondary" id="btnSkipDemo" type="button">先看演示（可稍后定位）</button>
@@ -89,7 +89,7 @@
         </div>
         <div class="panel">
           <h2>今日还剩</h2>
-          <p class="lede">按蛋白/€ 排序，并结合剩余卡路里与步行距离。</p>
+          <p class="lede">先满足：好吃 · 不超卡 · 蛋白够。下面可选排序偏好。</p>
           <div class="budget">
             <div class="budget-item">
               <div class="label">卡路里</div>
@@ -102,6 +102,18 @@
             <div class="budget-item">
               <div class="label">预算</div>
               <div class="value">€<span id="remainBudget">—</span></div>
+            </div>
+          </div>
+
+          <div class="pref-block">
+            <div class="field" style="margin-bottom: 8px">
+              <label>推荐偏好</label>
+            </div>
+            <div class="pref-row" role="radiogroup" aria-label="推荐偏好">
+              <button type="button" class="pref-btn active" data-pref="tasty">好吃优先</button>
+              <button type="button" class="pref-btn" data-pref="protein">蛋白优先</button>
+              <button type="button" class="pref-btn" data-pref="nearby">最近</button>
+              <button type="button" class="pref-btn" data-pref="value">性价比</button>
             </div>
           </div>
 
@@ -129,11 +141,12 @@
           <h2 id="sheetTitle">Dish</h2>
           <div class="place" id="sheetPlace"></div>
           <div class="stats">
-            <div class="stat"><div class="k">价格</div><div class="v" id="statPrice">—</div></div>
+            <div class="stat"><div class="k">好吃</div><div class="v" id="statTaste">—</div></div>
             <div class="stat"><div class="k">蛋白</div><div class="v" id="statProtein">—</div></div>
             <div class="stat"><div class="k">热量</div><div class="v" id="statKcal">—</div></div>
-            <div class="stat"><div class="k">g/€</div><div class="v" id="statPp">—</div></div>
+            <div class="stat"><div class="k">价格</div><div class="v" id="statPrice">—</div></div>
           </div>
+          <p class="note" id="valueHint" style="margin-top: 0">蛋白性价比约 <strong id="statPp">—</strong> g/€（仅供参考，不是默认排序）</p>
           <div class="phrase">
             <div class="label">给服务员看 · 点餐句</div>
             <p id="askLocal"></p>

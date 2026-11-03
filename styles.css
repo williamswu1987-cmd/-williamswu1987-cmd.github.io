@@ -349,11 +349,39 @@ img {
   gap: 10px;
 }
 
+.pref-block {
+  margin-bottom: 16px;
+}
+
+.pref-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pref-btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 10px 8px;
+  font-size: 0.88rem;
+  font-weight: 650;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.pref-btn.active {
+  background: var(--sea-800);
+  border-color: var(--sea-800);
+  color: var(--citrus);
+}
+
 .budget {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .budget-item {

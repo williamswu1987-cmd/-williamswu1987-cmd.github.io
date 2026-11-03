@@ -2,6 +2,7 @@
   const STORAGE_KEY = "protiva-goals-v1";
   const LOG_KEY = "protiva-log-v1";
   const MODE_KEY = "protiva-mode-v1";
+  const PREF_KEY = "protiva-pref-v1";
 
   const defaults = {
     weightKg: 75,
@@ -10,6 +11,9 @@
     budget: 25,
     diet: "none",
   };
+
+  /** tasty = default; value = 性价比 optional */
+  const PREFS = ["tasty", "protein", "nearby", "value"];
 
   /** Active restaurant catalog — live GPS or Tivat demo seed */
   let catalog = null;
@@ -57,6 +61,53 @@
     return mid(dish.protein) / dish.price;
   }
 
+  function loadPref() {
+    const p = localStorage.getItem(PREF_KEY) || "tasty";
+    return PREFS.includes(p) ? p : "tasty";
+  }
+
+  function savePref(pref) {
+    localStorage.setItem(PREF_KEY, pref);
+  }
+
+  /** Heuristic "好吃" score — not a star rating, just ranking signal */
+  function tasteScore(dish) {
+    if (typeof dish.tasty === "number") return dish.tasty;
+    let s = 5;
+    const name = dish.name || "";
+    const tags = dish.tags || [];
+    if (tags.includes("seafood")) s += 2.2;
+    if (/octopus|salmon|steak|grill|shish|teriyaki|tandoori|ceviche|souvlaki|branzino|sea bass/i.test(name))
+      s += 2;
+    if (/chicken breast|chicken plate|grilled chicken/i.test(name)) s += 1.2;
+    if (tags.includes("high-protein") && !tags.includes("budget")) s += 0.8;
+    if (tags.includes("veg") && !/lentil|bean|cottage/i.test(name)) s += 0.6;
+    if (/pizza|burger|mixed grill/i.test(name)) s += 0.8;
+    if (/cottage cheese|lentil soup|white bean|egg white/i.test(name)) s -= 0.8;
+    if (tags.includes("budget") && /soup|yogurt|bean/i.test(name)) s -= 0.5;
+    return s;
+  }
+
+  /** Prefer lean protein density and not ultra-heavy plates */
+  function healthScore(dish) {
+    const k = mid(dish.kcal);
+    const p = mid(dish.protein);
+    let s = (p / Math.max(k, 1)) * 120;
+    const tags = dish.tags || [];
+    if (tags.includes("seafood") || tags.includes("poultry")) s += 2;
+    if (tags.includes("veg")) s += 1;
+    if (k > 650) s -= 3;
+    if (k > 750) s -= 3;
+    if (tags.includes("mixed") && k > 600) s -= 1.5;
+    return s;
+  }
+
+  function mealProteinTarget(remainProtein) {
+    if (remainProtein <= 0) return 0;
+    // One meal should cover a meaningful chunk of what's left, without demanding all of it.
+    return Math.min(40, Math.max(22, remainProtein * 0.28));
+  }
+
   function useSeedCatalog() {
     catalog = {
       ...window.PROTIVA_DATA,
@@ -89,30 +140,89 @@
     return true;
   }
 
-  function rankDishes(goals, log) {
+  function rankDishes(goals, log, pref = loadPref()) {
     const remainKcal = Math.max(0, goals.kcal - log.kcal);
     const remainProtein = Math.max(0, goals.protein - log.protein);
     const remainBudget = Math.max(0, goals.budget - log.spent);
+    const proteinNeed = mealProteinTarget(remainProtein);
 
-    return flattenDishes()
+    const enriched = flattenDishes()
       .filter((d) => dietOk(d, goals.diet))
-      .filter((d) => d.price <= Math.max(remainBudget, goals.budget * 0.6))
+      .filter((d) => d.price <= Math.max(remainBudget, goals.budget * 0.85))
       .map((d) => {
         const p = mid(d.protein);
         const k = mid(d.kcal);
         const pp = proteinPerEuro(d);
-        const fitsKcal = k <= remainKcal + 40;
-        const fitsProteinNeed = remainProtein > 0 ? p >= Math.min(25, remainProtein * 0.35) : true;
-        const score =
-          pp * 10 +
-          (fitsKcal ? 8 : -20) +
-          (fitsProteinNeed ? 6 : 0) +
-          d.confidence * 4 -
-          d.restaurant.walkMin * 0.15;
-        return { ...d, pp, fitsKcal, score, remainKcal, remainProtein, remainBudget };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
+        const taste = tasteScore(d);
+        const health = healthScore(d);
+        // Hard constraints the user asked for
+        const fitsKcal = k <= remainKcal + 25;
+        const fitsProtein = remainProtein <= 0 ? true : p >= proteinNeed - 3;
+        const walk = d.restaurant.walkMin || 1;
+
+        let score = 0;
+        if (pref === "tasty") {
+          // Default: delicious + healthy, among dishes that already fit kcal & protein
+          score = taste * 12 + health * 1.4 - walk * 0.25 + (d.confidence || 0.5) * 2;
+        } else if (pref === "protein") {
+          score = p * 2.2 + health * 0.6 + taste * 2 - walk * 0.2;
+        } else if (pref === "nearby") {
+          score = 40 - walk * 3 + taste * 4 + health * 0.5;
+        } else if (pref === "value") {
+          // Optional 性价比 mode only
+          score = pp * 14 + taste * 2 + (fitsProtein ? 4 : 0);
+        }
+
+        return {
+          ...d,
+          pp,
+          taste,
+          health,
+          fitsKcal,
+          fitsProtein,
+          score,
+          proteinNeed,
+          remainKcal,
+          remainProtein,
+          remainBudget,
+        };
+      });
+
+    // Must: within calories + meet protein need. Soften only if too few results.
+    let pool = enriched.filter((d) => d.fitsKcal && d.fitsProtein);
+    if (pool.length < 3) {
+      pool = enriched.filter((d) => d.fitsKcal && mid(d.protein) >= Math.min(18, proteinNeed));
+    }
+    if (pool.length < 3) {
+      pool = enriched.filter((d) => d.fitsKcal);
+    }
+    if (pool.length < 3) {
+      pool = enriched;
+    }
+
+    return pool.sort((a, b) => b.score - a.score).slice(0, 3);
+  }
+
+  function scoreBadge(d, pref) {
+    if (pref === "value") {
+      return { main: `${d.pp.toFixed(1)}`, sub: "g/€", fit: d.fitsKcal && d.fitsProtein ? "符合目标" : "勉强可吃" };
+    }
+    if (pref === "protein") {
+      return {
+        main: `${Math.round(mid(d.protein))}`,
+        sub: "g 蛋白",
+        fit: d.fitsProtein ? "蛋白够" : "蛋白偏低",
+      };
+    }
+    if (pref === "nearby") {
+      return { main: `${d.restaurant.walkMin}`, sub: "分钟", fit: d.fitsKcal ? "不超卡" : "略超卡" };
+    }
+    // tasty default
+    return {
+      main: d.taste >= 7 ? "很赞" : d.taste >= 5.5 ? "好吃" : "还行",
+      sub: "",
+      fit: d.fitsKcal && d.fitsProtein ? "不超卡 · 蛋白够" : d.fitsKcal ? "不超卡" : "需留意热量",
+    };
   }
 
   function showScreen(id) {
@@ -200,7 +310,9 @@
       return;
     }
 
-    const top = rankDishes(goals, log);
+    const pref = loadPref();
+    syncPrefButtons(pref);
+    const top = rankDishes(goals, log, pref);
     const list = $("#rankList");
     if (!top.length) {
       list.innerHTML = `<div class="empty">今天额度里暂时没有合适推荐。调高预算，或先重置今日记录。</div>`;
@@ -208,8 +320,9 @@
     }
 
     list.innerHTML = top
-      .map(
-        (d, i) => `
+      .map((d, i) => {
+        const badge = scoreBadge(d, pref);
+        return `
       <button class="rank-item" type="button" data-id="${d.id}" style="animation-delay:${0.05 + i * 0.07}s">
         <div class="rank-num">${i + 1}</div>
         <div class="rank-body">
@@ -220,15 +333,21 @@
           蛋白 ${d.protein[0]}–${d.protein[1]}g · ${d.kcal[0]}–${d.kcal[1]} kcal</div>
         </div>
         <div class="rank-score">
-          <div class="pp">${d.pp.toFixed(1)}<small> g/€</small></div>
-          <span class="fit ${d.fitsKcal ? "" : "tight"}">${d.fitsKcal ? "卡路里合适" : "略超今日剩余"}</span>
+          <div class="pp">${badge.main}${badge.sub ? `<small> ${badge.sub}</small>` : ""}</div>
+          <span class="fit ${d.fitsKcal && d.fitsProtein ? "" : "tight"}">${badge.fit}</span>
         </div>
-      </button>`
-      )
+      </button>`;
+      })
       .join("");
 
     $$(".rank-item", list).forEach((btn) => {
       btn.addEventListener("click", () => openDetail(btn.dataset.id));
+    });
+  }
+
+  function syncPrefButtons(pref) {
+    $$(".pref-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.pref === pref);
     });
   }
 
@@ -246,6 +365,8 @@
     $("#statProtein").textContent = `${dish.protein[0]}–${dish.protein[1]}g`;
     $("#statKcal").textContent = `${dish.kcal[0]}–${dish.kcal[1]}`;
     $("#statPp").textContent = pp.toFixed(1);
+    const t = tasteScore(dish);
+    $("#statTaste").textContent = t >= 7 ? "很赞" : t >= 5.5 ? "好吃" : "还行";
     $("#askLocal").textContent = dish.askLocal;
     const conf = Math.round(dish.confidence * 100);
     $("#confidence").textContent = dish.estimated
@@ -392,6 +513,16 @@
 
     $("#btnResetToday").addEventListener("click", resetToday);
     $("#btnDemoPitch").addEventListener("click", applyDemoPitch);
+
+    $$(".pref-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        savePref(btn.dataset.pref);
+        syncPrefButtons(btn.dataset.pref);
+        renderHome();
+        const labels = { tasty: "好吃优先", protein: "蛋白优先", nearby: "最近", value: "性价比" };
+        toast(`已切换：${labels[btn.dataset.pref] || btn.dataset.pref}`);
+      });
+    });
     $("#btnUseLocation").addEventListener("click", () => locateAndLoad());
     $("#btnUseDemo").addEventListener("click", () => {
       locating = false;
