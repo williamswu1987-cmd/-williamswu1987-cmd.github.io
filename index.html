@@ -275,13 +275,28 @@
 
           <div class="pref-block">
             <div class="field" style="margin-bottom: 8px">
+              <label>How to get it</label>
+            </div>
+            <div class="pref-row dining-mode-row" role="radiogroup" aria-label="Dining mode">
+              <button type="button" class="pref-btn active" data-dining="dine" id="btnDineIn">
+                Dine-in / walk
+              </button>
+              <button type="button" class="pref-btn" data-dining="delivery" id="btnDelivery">
+                Delivery
+              </button>
+            </div>
+            <p class="note dining-note" id="diningNote">
+              Macros are estimated ranges — not lab-accurate. Delivery apps rarely publish real
+              kcal/protein.
+            </p>
+            <div class="field" style="margin: 12px 0 8px">
               <label>Sort by</label>
             </div>
             <div class="pref-row" role="radiogroup" aria-label="Sort preference">
               <button type="button" class="pref-btn active" data-pref="tasty">Tasty first</button>
               <button type="button" class="pref-btn" data-pref="local">Local specialty</button>
               <button type="button" class="pref-btn" data-pref="protein">Protein first</button>
-              <button type="button" class="pref-btn" data-pref="nearby">Nearest</button>
+              <button type="button" class="pref-btn" data-pref="nearby" id="btnSortNearby">Nearest</button>
               <button type="button" class="pref-btn" data-pref="value">Best value</button>
             </div>
           </div>
@@ -377,6 +392,14 @@
             </p>
           </div>
           <p class="confidence" id="confidence"></p>
+          <div class="delivery-apps" id="deliveryApps" hidden>
+            <p class="trust-label">Order via local delivery</p>
+            <div class="delivery-app-row" id="deliveryAppRow"></div>
+            <p class="note">
+              Opens Wolt / Glovo / Bolt Food search for this place. Live menus &amp; ETAs are in those
+              apps — FitBite only guards your calorie/protein budget.
+            </p>
+          </div>
           <div class="trust-block">
             <p class="trust-label">Help us get accurate (beats pure estimates)</p>
             <div class="trust-row">
@@ -443,6 +466,7 @@
     <script src="monetization.js"></script>
     <script src="coach.js"></script>
     <script src="steps.js"></script>
+    <script src="delivery.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

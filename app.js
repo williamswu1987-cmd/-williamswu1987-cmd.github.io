@@ -548,7 +548,13 @@
         } else if (pref === "protein") {
           score = p * 2.2 + health * 0.6 + taste * 2 - walk * 0.2 + (confirmed ? 4 : 0);
         } else if (pref === "nearby") {
-          score = 40 - walk * 3 + taste * 4 + health * 0.5;
+          if (window.FitBiteDelivery?.isDelivery?.()) {
+            // Delivery: closer kitchens tend to arrive sooner — still not a live ETA
+            const eta = window.FitBiteDelivery.etaMinutes(walk);
+            score = 50 - eta * 0.9 + taste * 4 + health * 0.5;
+          } else {
+            score = 40 - walk * 3 + taste * 4 + health * 0.5;
+          }
         } else if (pref === "value") {
           // Optional Best value mode only
           score = pp * 14 + taste * 2 + (fitsProtein ? 4 : 0) + (confirmed ? 3 : 0);
@@ -599,6 +605,10 @@
       };
     }
     if (pref === "nearby") {
+      if (window.FitBiteDelivery?.isDelivery?.()) {
+        const eta = window.FitBiteDelivery.etaMinutes(d.restaurant.walkMin);
+        return { main: `~${eta}`, sub: "min ETA", fit: d.fitsKcal ? "On calories" : "Slightly over" };
+      }
       return { main: `${d.restaurant.walkMin}`, sub: "min", fit: d.fitsKcal ? "On calories" : "Slightly over" };
     }
     if (pref === "local") {
@@ -1092,8 +1102,12 @@
         <div class="rank-num">${i + 1}</div>
         <div class="rank-body">
           <strong>${d.name}</strong>
-          <div class="meta">${d.restaurant.name} · €${d.price.toFixed(1)} · ${d.restaurant.walkMin} min walk${
-            d.fromUserMenu || d.confirmed ? " · confirmed" : d.estimated ? " · est." : ""
+          <div class="meta">${d.restaurant.name} · €${d.price.toFixed(1)} · ${
+            window.FitBiteDelivery?.isDelivery?.()
+              ? `~${window.FitBiteDelivery.etaMinutes(d.restaurant.walkMin)} min delivery`
+              : `${d.restaurant.walkMin} min walk`
+          }${
+            d.fromUserMenu || d.confirmed ? " · confirmed" : " · est. macros"
           }<br/>
           Protein ${d.protein[0]}–${d.protein[1]}g · ${d.kcal[0]}–${d.kcal[1]} kcal</div>
         </div>
@@ -1111,7 +1125,7 @@
   }
 
   function syncPrefButtons(pref) {
-    $$(".pref-row .pref-btn").forEach((btn) => {
+    $$('.pref-row[aria-label="Sort preference"] .pref-btn').forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.pref === pref);
     });
   }
@@ -1142,7 +1156,13 @@
     const pp = proteinPerEuro(dish);
 
     $("#sheetTitle").textContent = dish.name;
-    $("#sheetPlace").textContent = `${dish.restaurant.name} · ${dish.restaurant.cuisine} · ${dish.restaurant.walkMin} min walk`;
+    const deliveryOn = !!window.FitBiteDelivery?.isDelivery?.();
+    const placeLine = deliveryOn
+      ? `${dish.restaurant.name} · ${dish.restaurant.cuisine} · ~${window.FitBiteDelivery.etaMinutes(
+          dish.restaurant.walkMin
+        )} min delivery`
+      : `${dish.restaurant.name} · ${dish.restaurant.cuisine} · ${dish.restaurant.walkMin} min walk`;
+    $("#sheetPlace").textContent = placeLine;
     $("#statPrice").textContent = `€${dish.price.toFixed(1)}`;
     $("#statProtein").textContent = `${dish.protein[0]}–${dish.protein[1]}g`;
     $("#statKcal").textContent = `${dish.kcal[0]}–${dish.kcal[1]}`;
@@ -1152,18 +1172,80 @@
     renderAskPhrase(dish);
     renderCoach(dish);
     renderSheetDeficit(dish);
-    const conf = Math.round(
-      Math.min(0.98, (dish.confidence || 0.5) + (window.ProtivaTrust?.confidenceBoost(dish.id) || 0)) * 100
+    const confRaw = Math.min(
+      0.98,
+      (dish.confidence || 0.5) + (window.ProtivaTrust?.confidenceBoost(dish.id) || 0)
     );
-    if (dish.fromUserMenu) {
-      $("#confidence").textContent = `From your uploaded/confirmed menu (~${conf}% confidence). Nutrition may still be estimated.`;
-    } else if (dish.estimated) {
-      $("#confidence").textContent = `Template estimate (not the real menu) · ~${conf}% confidence. Correct with the buttons below.`;
+    if (window.FitBiteDelivery?.nutritionAccuracyNote) {
+      $("#confidence").textContent = window.FitBiteDelivery.nutritionAccuracyNote({
+        estimated: !!dish.estimated,
+        fromUserMenu: !!dish.fromUserMenu,
+        confidence: confRaw,
+        delivery: deliveryOn,
+      });
     } else {
-      $("#confidence").textContent = `Nutrition is an estimated range · ${conf}% confidence (not false precision)`;
+      $("#confidence").textContent = `Estimated macros · ~${Math.round(confRaw * 100)}% confidence`;
+    }
+    renderDeliveryApps(dish);
+    const navBtn = $("#btnNavigate");
+    if (navBtn) {
+      navBtn.hidden = deliveryOn;
+      navBtn.textContent = "Navigate";
     }
     syncTrustButtons(dish.id);
     $("#overlay").classList.add("open");
+  }
+
+  function renderDeliveryApps(dish) {
+    const box = $("#deliveryApps");
+    const row = $("#deliveryAppRow");
+    if (!box || !row) return;
+    const on = !!window.FitBiteDelivery?.isDelivery?.();
+    box.hidden = !on;
+    if (!on || !window.FitBiteDelivery) {
+      row.innerHTML = "";
+      return;
+    }
+    const city = catalog?.city || "Tivat";
+    const links = window.FitBiteDelivery.deliveryLinks(dish.restaurant, city);
+    row.innerHTML = links
+      .map(
+        (l) =>
+          `<button type="button" class="delivery-app-btn" data-url="${l.url.replace(/"/g, "&quot;")}">Order on ${
+            l.name
+          }</button>`
+      )
+      .join("");
+    $$(".delivery-app-btn", row).forEach((btn) => {
+      btn.addEventListener("click", () => {
+        window.open(btn.dataset.url, "_blank", "noopener");
+        toast(`Opening ${btn.textContent.replace("Order on ", "")}…`);
+      });
+    });
+  }
+
+  function syncDiningModeUi() {
+    const mode = window.FitBiteDelivery?.loadMode?.() || "dine";
+    $$("[data-dining]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.dining === mode);
+    });
+    const nearbyBtn = $("#btnSortNearby");
+    if (nearbyBtn) nearbyBtn.textContent = mode === "delivery" ? "Faster ETA" : "Nearest";
+    const note = $("#diningNote");
+    if (note) {
+      note.textContent =
+        mode === "delivery"
+          ? "Delivery: open Wolt / Glovo / Bolt Food from a dish. Macros stay estimated (±20–35%) — those apps rarely list real nutrition."
+          : "Dine-in: walk to the place. Macros are estimated ranges — not lab-accurate; confirm real dishes when you can.";
+    }
+  }
+
+  function setDiningMode(mode) {
+    window.FitBiteDelivery?.saveMode?.(mode);
+    syncDiningModeUi();
+    renderHome();
+    if (selected) openDetail(selected.id);
+    toast(mode === "delivery" ? "Delivery mode · order via local apps" : "Dine-in mode · walk / navigate");
   }
 
   function renderAskPhrase(dish) {
@@ -1566,6 +1648,10 @@
     if (window.FitBiteSteps?.isNative?.()) {
       syncHealthSteps({ silent: true }).catch(() => {});
     }
+    syncDiningModeUi();
+    $$("[data-dining]").forEach((btn) => {
+      btn.addEventListener("click", () => setDiningMode(btn.dataset.dining));
+    });
 
     $("#btnSkipDemo").addEventListener("click", async () => {
       if (!localStorage.getItem(STORAGE_KEY)) saveGoals(defaults);
@@ -1594,19 +1680,21 @@
     $("#btnResetToday").addEventListener("click", resetToday);
     $("#btnDemoPitch").addEventListener("click", applyDemoPitch);
 
-    $$(".pref-btn").forEach((btn) => {
+    $$('.pref-row[aria-label="Sort preference"] .pref-btn').forEach((btn) => {
       btn.addEventListener("click", () => {
-        savePref(btn.dataset.pref);
-        syncPrefButtons(btn.dataset.pref);
+        const pref = btn.dataset.pref;
+        if (!PREFS.includes(pref)) return;
+        savePref(pref);
+        syncPrefButtons(pref);
         renderHome();
         const labels = {
           tasty: "Tasty first",
           local: "Local specialty",
           protein: "Protein first",
-          nearby: "Nearest",
+          nearby: window.FitBiteDelivery?.isDelivery?.() ? "Faster ETA" : "Nearest",
           value: "Best value",
         };
-        toast(`Switched: ${labels[btn.dataset.pref] || btn.dataset.pref}`);
+        toast(`Switched: ${labels[pref] || pref}`);
       });
     });
     $("#btnUseLocation").addEventListener("click", () => locateAndLoad({ countUsage: true }));

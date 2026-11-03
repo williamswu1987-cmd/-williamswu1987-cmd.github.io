@@ -614,6 +614,48 @@ img {
   grid-template-columns: repeat(3, 1fr);
 }
 
+.dining-mode-row {
+  grid-template-columns: 1fr 1fr;
+}
+
+.dining-note {
+  margin: 8px 0 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.delivery-apps {
+  margin: 0 0 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(6, 90, 110, 0.07);
+  border: 1px solid rgba(6, 90, 110, 0.14);
+}
+
+.delivery-app-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 6px;
+}
+
+.delivery-app-btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  font-weight: 650;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.delivery-app-btn:hover {
+  border-color: rgba(26, 143, 163, 0.4);
+}
+
 @media (max-width: 380px) {
   .pref-row[aria-label="Sort preference"] {
     grid-template-columns: 1fr 1fr;
