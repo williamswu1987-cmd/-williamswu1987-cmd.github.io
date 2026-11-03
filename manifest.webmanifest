@@ -1,14 +1,14 @@
 {
-  "name": "Protiva",
-  "short_name": "Protiva",
-  "description": "到饭点推附近好吃、不超卡、蛋白够的那一盘。",
+  "name": "FitBite",
+  "short_name": "FitBite",
+  "description": "Nearby tasty meals that fit your calorie budget and protein goal.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#062a32",
   "theme_color": "#062a32",
-  "lang": "zh-Hans",
+  "lang": "en",
   "icons": [
     {
       "src": "assets/icons/icon-192.png",
@@ -29,5 +29,9 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["food", "health", "lifestyle"]
+  "categories": [
+    "food",
+    "health",
+    "lifestyle"
+  ]
 }
