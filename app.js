@@ -447,7 +447,8 @@
       ...window.PROTIVA_DATA,
       source: "seed",
       estimatedMenus: false,
-      country: "Montenegro",
+      country: window.PROTIVA_DATA?.country || "Montenegro",
+      countryCode: window.PROTIVA_DATA?.countryCode || "ME",
     };
     if (window.ProtivaTrust) {
       catalog = window.ProtivaTrust.mergeUserDishesIntoCatalog(catalog);
@@ -1177,11 +1178,13 @@
       (dish.confidence || 0.5) + (window.ProtivaTrust?.confidenceBoost(dish.id) || 0)
     );
     if (window.FitBiteDelivery?.nutritionAccuracyNote) {
+      const { country, countryCode } = catalogCountry();
       $("#confidence").textContent = window.FitBiteDelivery.nutritionAccuracyNote({
         estimated: !!dish.estimated,
         fromUserMenu: !!dish.fromUserMenu,
         confidence: confRaw,
         delivery: deliveryOn,
+        appNames: window.FitBiteDelivery.appNamesForPlace(countryCode, country),
       });
     } else {
       $("#confidence").textContent = `Estimated macros · ~${Math.round(confRaw * 100)}% confidence`;
@@ -1196,6 +1199,17 @@
     $("#overlay").classList.add("open");
   }
 
+  function catalogCountry() {
+    return {
+      city: catalog?.city || "Tivat",
+      country: catalog?.country || "Montenegro",
+      countryCode:
+        catalog?.countryCode ||
+        window.FitBiteDelivery?.normalizeCountryCode?.("", catalog?.country) ||
+        "ME",
+    };
+  }
+
   function renderDeliveryApps(dish) {
     const box = $("#deliveryApps");
     const row = $("#deliveryAppRow");
@@ -1206,8 +1220,9 @@
       row.innerHTML = "";
       return;
     }
-    const city = catalog?.city || "Tivat";
-    const links = window.FitBiteDelivery.deliveryLinks(dish.restaurant, city);
+    const { city, country, countryCode } = catalogCountry();
+    const packed = window.FitBiteDelivery.deliveryLinks(dish.restaurant, city, countryCode, country);
+    const links = packed.apps || [];
     row.innerHTML = links
       .map(
         (l) =>
@@ -1230,13 +1245,16 @@
       btn.classList.toggle("active", btn.dataset.dining === mode);
     });
     const nearbyBtn = $("#btnSortNearby");
-    if (nearbyBtn) nearbyBtn.textContent = mode === "delivery" ? "Faster ETA" : "Nearest";
+    if (nearbyBtn) nearbyBtn.textContent = mode === "delivery" ? "Closer kitchen" : "Nearest";
     const note = $("#diningNote");
-    if (note) {
+    if (note && window.FitBiteDelivery) {
+      const { country, countryCode } = catalogCountry();
+      const names = window.FitBiteDelivery.appNamesForPlace(countryCode, country);
+      const appList = names.length ? names.join(" · ") : "local delivery apps";
       note.textContent =
         mode === "delivery"
-          ? "Delivery: open Wolt / Glovo / Bolt Food from a dish. Macros stay estimated (±20–35%) — those apps rarely list real nutrition."
-          : "Dine-in: walk to the place. Macros are estimated ranges — not lab-accurate; confirm real dishes when you can.";
+          ? `Delivery in ${country || countryCode || "your area"} → ${appList}. Sorted by your calorie/protein range (midpoints), not live app ETAs. Macros stay estimated.`
+          : "Dine-in: walk to the place. Sorted by your calorie/protein range (midpoints). Macros are estimates — not lab-accurate.";
     }
   }
 
@@ -1691,7 +1709,7 @@
           tasty: "Tasty first",
           local: "Local specialty",
           protein: "Protein first",
-          nearby: window.FitBiteDelivery?.isDelivery?.() ? "Faster ETA" : "Nearest",
+          nearby: window.FitBiteDelivery?.isDelivery?.() ? "Closer kitchen" : "Nearest",
           value: "Best value",
         };
         toast(`Switched: ${labels[pref] || pref}`);

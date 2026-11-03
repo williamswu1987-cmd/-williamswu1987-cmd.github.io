@@ -250,6 +250,7 @@ out center tags 40;`;
     return {
       city: where.label && where.label !== "Current location" ? where.label : cityFromHits || where.label,
       country: where.country || topPlaces.find((p) => p.country)?.country || "",
+      countryCode: where.countryCode || "",
       cityCenter: { lat, lng },
       source,
       estimatedMenus: true,

@@ -1,6 +1,8 @@
 /** Tivat MVP seed data — local Adriatic / Montenegrin-heavy. Prices in EUR. Nutrition is estimated ranges. */
 window.PROTIVA_DATA = {
   city: "Tivat",
+  country: "Montenegro",
+  countryCode: "ME",
   cityCenter: { lat: 42.4349, lng: 18.7065 },
   restaurants: [
     {
