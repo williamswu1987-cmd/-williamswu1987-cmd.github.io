@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#062a32" />
     <meta
       name="description"
-      content="Protiva — 到饭点推附近蛋白性价比最高的那一盘。Tivat 黑客松 MVP。"
+      content="Protiva — 开定位，推附近蛋白性价比最高的那一盘。哪里都能用。"
     />
     <title>Protiva · 附近蛋白</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -24,15 +24,16 @@
         <div class="hero-visual">
           <img
             src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80"
-            alt="Adriatic grilled seafood plate"
+            alt="Grilled seafood plate"
           />
         </div>
         <div class="hero-copy">
           <p class="brand">Proti<span>va</span></p>
           <h1>到饭点，推附近蛋白性价比最高的那一盘</h1>
-          <p>不用自己算。吃在卡路里里，好吃又便宜。先从 Tivat 开始。</p>
-          <button class="cta" id="btnStart" type="button">设置今日目标</button>
-          <button class="cta secondary" id="btnSkipDemo" type="button">先看 Top 3 演示</button>
+          <p>有网、开定位，哪里都能用。不用自己算，吃在卡路里里。</p>
+          <button class="cta" id="btnLocateHero" type="button">开启定位，看附近 Top 3</button>
+          <button class="cta secondary" id="btnStart" type="button">先设置今日目标</button>
+          <button class="cta secondary" id="btnSkipDemo" type="button">先看演示（可稍后定位）</button>
         </div>
       </section>
 
@@ -40,11 +41,11 @@
       <section class="screen" id="screen-goals">
         <div class="topbar">
           <div class="logo">Proti<span>va</span></div>
-          <div class="chip"><span class="dot"></span> Tivat MVP</div>
+          <div class="chip loc-chip"><span class="dot"></span> 目标</div>
         </div>
         <div class="panel">
           <h2>设一次目标</h2>
-          <p class="lede">体重、热量、蛋白、预算、忌口。之后到饭点直接推菜。</p>
+          <p class="lede">体重、热量、蛋白、预算、忌口。保存后会请求定位并搜索附近餐厅。</p>
           <form id="goalsForm">
             <div class="grid-2">
               <div class="field">
@@ -75,7 +76,7 @@
                 <option value="veg">素食（含蛋奶）</option>
               </select>
             </div>
-            <button class="cta" type="submit">保存并看推荐</button>
+            <button class="cta" type="submit">保存并用定位推荐</button>
           </form>
         </div>
       </section>
@@ -84,7 +85,7 @@
       <section class="screen" id="screen-home">
         <div class="topbar">
           <div class="logo">Proti<span>va</span></div>
-          <div class="chip"><span class="dot"></span> 饭点 · Tivat</div>
+          <div class="chip loc-chip"><span class="dot"></span> 定位中</div>
         </div>
         <div class="panel">
           <h2>今日还剩</h2>
@@ -92,30 +93,32 @@
           <div class="budget">
             <div class="budget-item">
               <div class="label">卡路里</div>
-              <div class="value"><span id="remainKcal">1050</span><small> kcal</small></div>
+              <div class="value"><span id="remainKcal">—</span><small> kcal</small></div>
             </div>
             <div class="budget-item">
               <div class="label">蛋白</div>
-              <div class="value"><span id="remainProtein">120</span><small> g</small></div>
+              <div class="value"><span id="remainProtein">—</span><small> g</small></div>
             </div>
             <div class="budget-item">
               <div class="label">预算</div>
-              <div class="value">€<span id="remainBudget">25</span></div>
+              <div class="value">€<span id="remainBudget">—</span></div>
             </div>
           </div>
 
           <div class="section-label">
             <h3>附近 Top 3</h3>
-            <span>10 店 · 30 菜</span>
+            <span id="placesMeta">—</span>
           </div>
           <div class="rank-list" id="rankList"></div>
 
           <div class="actions" style="margin-top: 16px">
+            <button class="cta" id="btnUseLocation" type="button">用我的定位刷新</button>
+            <button class="cta light" id="btnUseDemo" type="button">改用 Tivat 演示菜单</button>
             <button class="cta light" id="btnDemoPitch" type="button">演示剧本：剩 1050 卡 / 120g 蛋白</button>
             <button class="cta light" id="btnEditGoals" type="button">改目标</button>
             <button class="cta light" id="btnResetToday" type="button">重置今日记录</button>
           </div>
-          <p class="note">演示数据：Bacchus、土耳其烧烤等 Tivat 菜单人工录入。营养为区间估算。</p>
+          <p class="note" id="dataNote">有网并允许定位后，会搜索你附近的餐厅。</p>
         </div>
       </section>
 
@@ -132,7 +135,7 @@
             <div class="stat"><div class="k">g/€</div><div class="v" id="statPp">—</div></div>
           </div>
           <div class="phrase">
-            <div class="label">给服务员看 · 当地话</div>
+            <div class="label">给服务员看 · 点餐句</div>
             <p id="askLocal"></p>
           </div>
           <p class="confidence" id="confidence"></p>
@@ -149,6 +152,8 @@
     </div>
 
     <script src="data/menus.js"></script>
+    <script src="data/cuisine-templates.js"></script>
+    <script src="geo.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

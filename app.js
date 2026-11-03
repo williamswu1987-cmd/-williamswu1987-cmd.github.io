@@ -1,6 +1,7 @@
 (() => {
   const STORAGE_KEY = "protiva-goals-v1";
   const LOG_KEY = "protiva-log-v1";
+  const MODE_KEY = "protiva-mode-v1";
 
   const defaults = {
     weightKg: 75,
@@ -9,6 +10,10 @@
     budget: 25,
     diet: "none",
   };
+
+  /** Active restaurant catalog — live GPS or Tivat demo seed */
+  let catalog = null;
+  let locating = false;
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -52,9 +57,21 @@
     return mid(dish.protein) / dish.price;
   }
 
+  function useSeedCatalog() {
+    catalog = {
+      ...window.PROTIVA_DATA,
+      source: "seed",
+      estimatedMenus: false,
+      country: "Montenegro",
+    };
+    localStorage.setItem(MODE_KEY, "demo");
+    updateLocationChip();
+  }
+
   function flattenDishes() {
+    if (!catalog?.restaurants) return [];
     const out = [];
-    for (const r of window.PROTIVA_DATA.restaurants) {
+    for (const r of catalog.restaurants) {
       for (const d of r.dishes) {
         out.push({ ...d, restaurant: r });
       }
@@ -66,11 +83,7 @@
     if (diet === "none") return true;
     if (diet === "no-pork") return !dish.tags.includes("pork") && !dish.tags.includes("mixed");
     if (diet === "pescatarian") {
-      return (
-        dish.tags.includes("seafood") ||
-        dish.tags.includes("eggs") ||
-        dish.tags.includes("veg")
-      );
+      return dish.tags.includes("seafood") || dish.tags.includes("eggs") || dish.tags.includes("veg");
     }
     if (diet === "veg") return dish.tags.includes("veg") || dish.tags.includes("eggs");
     return true;
@@ -111,7 +124,36 @@
     el.textContent = msg;
     el.classList.add("show");
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => el.classList.remove("show"), 2200);
+    toast._t = setTimeout(() => el.classList.remove("show"), 2600);
+  }
+
+  function updateLocationChip() {
+    const placeCount = catalog?.restaurants?.length || 0;
+    const dishCount = flattenDishes().length;
+    const city = catalog?.city || "…";
+    const live = catalog?.source && catalog.source !== "seed";
+
+    $$(".loc-chip").forEach((el) => {
+      el.innerHTML = live
+        ? `<span class="dot"></span> ${city}`
+        : `<span class="dot"></span> 演示 · ${city}`;
+    });
+
+    const meta = $("#placesMeta");
+    if (meta) {
+      meta.textContent = placeCount
+        ? `${placeCount} 店 · ${dishCount} 菜`
+        : locating
+          ? "定位中…"
+          : "等待定位";
+    }
+
+    const note = $("#dataNote");
+    if (note) {
+      note.textContent = live
+        ? `基于你附近的 OpenStreetMap 餐厅；菜品与营养为按菜系估算（非真实菜单）。来源：${catalog.source}。`
+        : "当前为 Tivat 演示菜单（人工录入）。点「用我的定位」可在任意城市使用。";
+    }
   }
 
   function fillGoalsForm(goals) {
@@ -132,6 +174,10 @@
     };
   }
 
+  function setRankLoading(msg) {
+    $("#rankList").innerHTML = `<div class="empty">${msg}</div>`;
+  }
+
   function renderHome() {
     const goals = loadGoals();
     const log = loadLog();
@@ -142,6 +188,17 @@
     $("#remainKcal").textContent = remainKcal;
     $("#remainProtein").textContent = remainProtein;
     $("#remainBudget").textContent = remainBudget;
+    updateLocationChip();
+
+    if (locating) {
+      setRankLoading("正在读取定位并搜索附近餐厅…");
+      return;
+    }
+
+    if (!catalog?.restaurants?.length) {
+      setRankLoading("附近暂时没有餐厅数据。请允许定位，或使用 Tivat 演示数据。");
+      return;
+    }
 
     const top = rankDishes(goals, log);
     const list = $("#rankList");
@@ -157,7 +214,9 @@
         <div class="rank-num">${i + 1}</div>
         <div class="rank-body">
           <strong>${d.name}</strong>
-          <div class="meta">${d.restaurant.name} · €${d.price.toFixed(1)} · 走 ${d.restaurant.walkMin} 分钟<br/>
+          <div class="meta">${d.restaurant.name} · €${d.price.toFixed(1)} · 走 ${d.restaurant.walkMin} 分钟${
+            d.estimated ? " · 估" : ""
+          }<br/>
           蛋白 ${d.protein[0]}–${d.protein[1]}g · ${d.kcal[0]}–${d.kcal[1]} kcal</div>
         </div>
         <div class="rank-score">
@@ -188,7 +247,10 @@
     $("#statKcal").textContent = `${dish.kcal[0]}–${dish.kcal[1]}`;
     $("#statPp").textContent = pp.toFixed(1);
     $("#askLocal").textContent = dish.askLocal;
-    $("#confidence").textContent = `营养为估算区间，可信度 ${Math.round(dish.confidence * 100)}%（不做假精确）`;
+    const conf = Math.round(dish.confidence * 100);
+    $("#confidence").textContent = dish.estimated
+      ? `菜品与营养为按「${dish.cuisineKey || dish.restaurant.cuisine}」菜系估算，可信度约 ${conf}%（不是店家真实菜单）。`
+      : `营养为估算区间，可信度 ${conf}%（不做假精确）`;
     $("#overlay").classList.add("open");
   }
 
@@ -223,8 +285,8 @@
     toast("今日记录已清空");
   }
 
-  /** Hackathon pitch: remain 1,050 kcal / 120g protein → octopus + pork chop story */
   function applyDemoPitch() {
+    useSeedCatalog();
     const goals = {
       weightKg: 75,
       kcal: 2200,
@@ -240,7 +302,59 @@
       items: [{ id: "demo-breakfast", at: Date.now() }],
     });
     renderHome();
-    toast("演示额度已就绪：1050 卡 / 120g 蛋白");
+    toast("演示额度已就绪：1050 卡 / 120g 蛋白（Tivat 菜单）");
+  }
+
+  function withTimeout(promise, ms, label) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`${label || "操作"}超时`)), ms)
+      ),
+    ]);
+  }
+
+  async function locateAndLoad({ silent = false } = {}) {
+    locating = true;
+    renderHome();
+    if (!silent) toast("正在请求定位…");
+
+    try {
+      const pos = await withTimeout(window.ProtivaGeo.getPosition(), 12000, "定位");
+      const { latitude, longitude } = pos.coords;
+      if (!silent) toast("定位成功，正在搜附近餐厅…");
+      catalog = await withTimeout(
+        window.ProtivaGeo.buildLiveCatalog(latitude, longitude),
+        18000,
+        "搜索附近餐厅"
+      );
+      localStorage.setItem(MODE_KEY, "live");
+
+      if (!catalog.restaurants.length) {
+        toast("附近地图数据很少，已切到 Tivat 演示菜单");
+        useSeedCatalog();
+      } else {
+        toast(`已加载 ${catalog.city} 附近 ${catalog.restaurants.length} 家店`);
+      }
+    } catch (err) {
+      console.warn(err);
+      const msg =
+        err?.code === 1
+          ? "定位被拒绝。请在系统设置里打开定位，或先用演示数据。"
+          : err?.message || "定位失败";
+      toast(msg);
+      if (!catalog || !catalog.restaurants?.length) useSeedCatalog();
+    } finally {
+      locating = false;
+      renderHome();
+    }
+  }
+
+  async function goHome({ tryLocate = false } = {}) {
+    showScreen("screen-home");
+    if (!catalog) useSeedCatalog();
+    renderHome();
+    if (tryLocate) await locateAndLoad();
   }
 
   function boot() {
@@ -252,18 +366,23 @@
       showScreen("screen-goals");
     });
 
-    $("#btnSkipDemo").addEventListener("click", () => {
-      if (!hasSetup) saveGoals(defaults);
-      showScreen("screen-home");
-      renderHome();
+    $("#btnSkipDemo").addEventListener("click", async () => {
+      if (!localStorage.getItem(STORAGE_KEY)) saveGoals(defaults);
+      await goHome({ tryLocate: true });
     });
 
-    $("#goalsForm").addEventListener("submit", (e) => {
+    $("#btnLocateHero")?.addEventListener("click", async () => {
+      if (!localStorage.getItem(STORAGE_KEY)) saveGoals(defaults);
+      showScreen("screen-home");
+      await locateAndLoad();
+    });
+
+    $("#goalsForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       saveGoals(readGoalsForm());
       showScreen("screen-home");
-      renderHome();
       toast("目标已保存");
+      await locateAndLoad();
     });
 
     $("#btnEditGoals").addEventListener("click", () => {
@@ -273,6 +392,13 @@
 
     $("#btnResetToday").addEventListener("click", resetToday);
     $("#btnDemoPitch").addEventListener("click", applyDemoPitch);
+    $("#btnUseLocation").addEventListener("click", () => locateAndLoad());
+    $("#btnUseDemo").addEventListener("click", () => {
+      locating = false;
+      useSeedCatalog();
+      renderHome();
+      toast("已切换到 Tivat 演示菜单");
+    });
     $("#btnCloseSheet").addEventListener("click", closeDetail);
     $("#overlay").addEventListener("click", (e) => {
       if (e.target.id === "overlay") closeDetail();
@@ -285,20 +411,24 @@
       if (!selected) return;
       try {
         await navigator.clipboard.writeText(selected.askLocal);
-        toast("当地话已复制，给服务员看就行");
+        toast("点餐句已复制，给服务员看就行");
       } catch {
         toast(selected.askLocal);
       }
     });
     $("#btnLogMeal").addEventListener("click", logSelectedMeal);
 
-    // Demo defaults for hackathon pitch: remaining 1050 kcal / 120g protein
     if (!hasSetup) {
-      // keep landing first
       showScreen("screen-hero");
     } else {
       showScreen("screen-home");
-      renderHome();
+      const mode = localStorage.getItem(MODE_KEY);
+      if (mode === "live") {
+        locateAndLoad({ silent: true });
+      } else {
+        useSeedCatalog();
+        renderHome();
+      }
     }
   }
 
