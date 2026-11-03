@@ -2,7 +2,11 @@ node_modules/
 www/
 .DS_Store
 ios/
-android/
 *.log
 .idea/
 .vscode/
+local.properties
+*.keystore
+android/.gradle/
+android/app/build/
+android/build/
