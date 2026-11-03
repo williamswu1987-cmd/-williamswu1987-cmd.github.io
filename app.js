@@ -159,8 +159,16 @@
       estimatedMenus: false,
       country: "Montenegro",
     };
+    if (window.ProtivaTrust) {
+      catalog = window.ProtivaTrust.mergeUserDishesIntoCatalog(catalog);
+    }
     localStorage.setItem(MODE_KEY, "demo");
     updateLocationChip();
+  }
+
+  function refreshCatalogTrust() {
+    if (!catalog || !window.ProtivaTrust) return;
+    catalog = window.ProtivaTrust.mergeUserDishesIntoCatalog(catalog);
   }
 
   function flattenDishes() {
@@ -194,12 +202,17 @@
     const enriched = flattenDishes()
       .filter((d) => dietOk(d, goals.diet))
       .filter((d) => d.price <= Math.max(remainBudget, goals.budget * 0.85))
+      .filter((d) => !(window.ProtivaTrust && window.ProtivaTrust.isRejected(d.id)))
       .map((d) => {
         const p = mid(d.protein);
         const k = mid(d.kcal);
         const pp = proteinPerEuro(d);
-        const taste = tasteScore(d);
+        const userTaste = window.ProtivaTrust ? window.ProtivaTrust.tasteBoost(d.id) : 0;
+        const confBoost = window.ProtivaTrust ? window.ProtivaTrust.confidenceBoost(d.id) : 0;
+        const confirmed = window.ProtivaTrust && window.ProtivaTrust.isConfirmed(d.id);
+        const taste = tasteScore(d) + userTaste + (d.fromUserMenu ? 2 : 0) + (confirmed ? 1.5 : 0);
         const health = healthScore(d);
+        const confidence = Math.min(0.98, (d.confidence || 0.5) + confBoost + (d.fromUserMenu ? 0.3 : 0));
         // Hard constraints: within remaining day budget, and roughly one-meal sized
         const fitsKcal = k <= remainKcal + 25 && k <= mealKcal + 120;
         const fitsProtein = remainProtein <= 0 ? true : p >= proteinNeed - 3;
@@ -207,15 +220,20 @@
 
         let score = 0;
         if (pref === "tasty") {
-          // Default: delicious + healthy, among dishes that already fit kcal & protein
-          score = taste * 12 + health * 1.4 - walk * 0.25 + (d.confidence || 0.5) * 2;
+          // Default: delicious + healthy; real menu confirmations beat templates
+          score =
+            taste * 12 +
+            health * 1.4 -
+            walk * 0.25 +
+            confidence * 6 +
+            (d.fromUserMenu || confirmed ? 8 : 0);
         } else if (pref === "protein") {
-          score = p * 2.2 + health * 0.6 + taste * 2 - walk * 0.2;
+          score = p * 2.2 + health * 0.6 + taste * 2 - walk * 0.2 + (confirmed ? 4 : 0);
         } else if (pref === "nearby") {
           score = 40 - walk * 3 + taste * 4 + health * 0.5;
         } else if (pref === "value") {
           // Optional 性价比 mode only
-          score = pp * 14 + taste * 2 + (fitsProtein ? 4 : 0);
+          score = pp * 14 + taste * 2 + (fitsProtein ? 4 : 0) + (confirmed ? 3 : 0);
         }
 
         return {
@@ -223,6 +241,8 @@
           pp,
           taste,
           health,
+          confidence,
+          confirmed: !!confirmed,
           fitsKcal,
           fitsProtein,
           score,
@@ -462,7 +482,7 @@
         <div class="rank-body">
           <strong>${d.name}</strong>
           <div class="meta">${d.restaurant.name} · €${d.price.toFixed(1)} · 走 ${d.restaurant.walkMin} 分钟${
-            d.estimated ? " · 估" : ""
+            d.fromUserMenu || d.confirmed ? " · 已确认" : d.estimated ? " · 估" : ""
           }<br/>
           蛋白 ${d.protein[0]}–${d.protein[1]}g · ${d.kcal[0]}–${d.kcal[1]} kcal</div>
         </div>
@@ -480,14 +500,31 @@
   }
 
   function syncPrefButtons(pref) {
-    $$(".pref-btn").forEach((btn) => {
+    $$(".pref-row .pref-btn").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.pref === pref);
     });
   }
 
   let selected = null;
 
+  function syncTrustButtons(dishId) {
+    const fb = window.ProtivaTrust?.getFeedback(dishId) || {};
+    $("#btnExistsYes")?.classList.toggle("active", fb.exists === "yes");
+    $("#btnExistsNo")?.classList.toggle("active", fb.exists === "no");
+    $("#btnTasteUp")?.classList.toggle("active", fb.taste === "up");
+    $("#btnTasteDown")?.classList.toggle("active", fb.taste === "down");
+    const st = $("#trustStatus");
+    if (!st) return;
+    const bits = [];
+    if (fb.exists === "yes") bits.push("已标记：店里有");
+    if (fb.exists === "no") bits.push("已标记：没有这道（将不再推荐）");
+    if (fb.taste === "up") bits.push("你觉得好吃");
+    if (fb.taste === "down") bits.push("你觉得不好吃");
+    st.textContent = bits.length ? bits.join(" · ") : "还没反馈。你的标记会立刻影响排序。";
+  }
+
   function openDetail(dishId) {
+    refreshCatalogTrust();
     const dish = flattenDishes().find((d) => d.id === dishId);
     if (!dish) return;
     selected = dish;
@@ -499,19 +536,65 @@
     $("#statProtein").textContent = `${dish.protein[0]}–${dish.protein[1]}g`;
     $("#statKcal").textContent = `${dish.kcal[0]}–${dish.kcal[1]}`;
     $("#statPp").textContent = pp.toFixed(1);
-    const t = tasteScore(dish);
+    const t = tasteScore(dish) + (window.ProtivaTrust?.tasteBoost(dish.id) || 0);
     $("#statTaste").textContent = t >= 7 ? "很赞" : t >= 5.5 ? "好吃" : "还行";
     $("#askLocal").textContent = dish.askLocal;
-    const conf = Math.round(dish.confidence * 100);
-    $("#confidence").textContent = dish.estimated
-      ? `菜品与营养为按「${dish.cuisineKey || dish.restaurant.cuisine}」菜系估算，可信度约 ${conf}%（不是店家真实菜单）。`
-      : `营养为估算区间，可信度 ${conf}%（不做假精确）`;
+    const conf = Math.round(
+      Math.min(0.98, (dish.confidence || 0.5) + (window.ProtivaTrust?.confidenceBoost(dish.id) || 0)) * 100
+    );
+    if (dish.fromUserMenu) {
+      $("#confidence").textContent = `来自你上传/确认的菜单，可信度约 ${conf}%。营养仍可能是粗估。`;
+    } else if (dish.estimated) {
+      $("#confidence").textContent = `模板估算菜（不是店家真实菜单），可信度约 ${conf}%。请用下方按钮纠正。`;
+    } else {
+      $("#confidence").textContent = `营养为估算区间，可信度 ${conf}%（不做假精确）`;
+    }
+    syncTrustButtons(dish.id);
     $("#overlay").classList.add("open");
   }
 
   function closeDetail() {
     $("#overlay").classList.remove("open");
     selected = null;
+  }
+
+  function openMenuSheet() {
+    if (!selected) return;
+    $("#menuPlace").textContent = `${selected.restaurant.name} · 拍菜单后记下真实菜名`;
+    $("#menuDishName").value = "";
+    $("#menuDishPrice").value = "10";
+    $("#menuDishNote").value = "";
+    $("#menuPhoto").value = "";
+    const prev = $("#menuPhotoPreview");
+    if (prev) {
+      prev.hidden = true;
+      prev.innerHTML = "";
+    }
+    $("#menuOverlay").classList.add("open");
+  }
+
+  function closeMenuSheet() {
+    $("#menuOverlay").classList.remove("open");
+  }
+
+  function recordTrust(patch) {
+    if (!selected || !window.ProtivaTrust) return;
+    const id = selected.id;
+    window.ProtivaTrust.setFeedback(id, patch);
+    window.ProtivaPay?.reportFeedback?.({
+      dishId: id,
+      restaurantId: selected.restaurant.id,
+      ...patch,
+    });
+    if (patch.exists === "no") {
+      toast("已记下：没有这道。下次不再推荐。");
+      closeDetail();
+      renderHome();
+      return;
+    }
+    toast("感谢反馈，排序已更新");
+    renderHome();
+    openDetail(id);
   }
 
   function mapsUrl(r) {
@@ -576,6 +659,7 @@
 
   async function locateAndLoad({ silent = false, countUsage = true } = {}) {
     if (countUsage && window.ProtivaPay && !silent) {
+      await window.ProtivaPay.refreshStatus?.().catch(() => {});
       const gate = window.ProtivaPay.peekLookupAllowed();
       if (!gate.ok) {
         openPaywall("今天的免费定位次数用完了。升级 Pro 可继续无限刷新附近推荐。");
@@ -596,10 +680,19 @@
         18000,
         "搜索附近餐厅"
       );
+      if (window.ProtivaTrust) {
+        catalog = window.ProtivaTrust.mergeUserDishesIntoCatalog(catalog);
+      }
       localStorage.setItem(MODE_KEY, "live");
 
       if (countUsage && window.ProtivaPay && !silent) {
-        window.ProtivaPay.consumeLookup();
+        const used = await window.ProtivaPay.consumeLookup();
+        if (!used.ok) {
+          openPaywall("今天的免费定位次数用完了。升级 Pro 可继续无限刷新附近推荐。");
+          locating = false;
+          renderHome();
+          return;
+        }
       }
 
       if (!catalog.restaurants.length) {
@@ -668,6 +761,7 @@
     const goals = loadGoals();
     const hasSetup = localStorage.getItem(STORAGE_KEY);
     registerPwa();
+    window.ProtivaPay?.boot?.().then(() => updatePlanUi()).catch(() => {});
 
     $("#btnStart").addEventListener("click", () => {
       fillGoalsForm(goals);
@@ -736,22 +830,75 @@
       if (e.target.id === "paywall") closePaywall();
     });
     $("#btnBuyMonthly")?.addEventListener("click", async () => {
-      await window.ProtivaPay.purchase("monthly");
-      closePaywall();
-      updatePlanUi();
-      toast("已开通 Pro（测试模拟）。上架后将走 App Store 支付。");
+      try {
+        await window.ProtivaPay.purchase("monthly");
+        closePaywall();
+        updatePlanUi();
+        toast("已在服务器开通 Pro（测试）。本地改存储无效。");
+      } catch {
+        toast("开通失败：服务器不可用");
+      }
     });
     $("#btnBuyYearly")?.addEventListener("click", async () => {
-      await window.ProtivaPay.purchase("yearly");
-      closePaywall();
-      updatePlanUi();
-      toast("已开通 Pro 年付（测试模拟）。上架后将走 App Store 支付。");
+      try {
+        await window.ProtivaPay.purchase("yearly");
+        closePaywall();
+        updatePlanUi();
+        toast("已在服务器开通 Pro 年付（测试）。");
+      } catch {
+        toast("开通失败：服务器不可用");
+      }
     });
     $("#btnRestore")?.addEventListener("click", async () => {
       const res = await window.ProtivaPay.restore();
       updatePlanUi();
-      toast(res.ok ? "已恢复 Pro 权益" : "没有找到可恢复的购买");
+      toast(res.ok ? "已从服务器恢复 Pro" : "没有找到可恢复的购买");
       if (res.ok) closePaywall();
+    });
+    $("#btnExistsYes")?.addEventListener("click", () => recordTrust({ exists: "yes" }));
+    $("#btnExistsNo")?.addEventListener("click", () => recordTrust({ exists: "no" }));
+    $("#btnTasteUp")?.addEventListener("click", () => recordTrust({ taste: "up" }));
+    $("#btnTasteDown")?.addEventListener("click", () => recordTrust({ taste: "down" }));
+    $("#btnAddMenu")?.addEventListener("click", openMenuSheet);
+    $("#btnCloseMenu")?.addEventListener("click", closeMenuSheet);
+    $("#menuOverlay")?.addEventListener("click", (e) => {
+      if (e.target.id === "menuOverlay") closeMenuSheet();
+    });
+    $("#menuPhoto")?.addEventListener("change", () => {
+      const file = $("#menuPhoto").files?.[0];
+      const prev = $("#menuPhotoPreview");
+      if (!file || !prev || !selected) return;
+      const url = URL.createObjectURL(file);
+      prev.hidden = false;
+      prev.innerHTML = `<img src="${url}" alt="菜单照片预览" />`;
+      window.ProtivaTrust?.saveMenuPhotoMeta(selected.restaurant.id, {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      });
+    });
+    $("#btnSaveMenuDish")?.addEventListener("click", () => {
+      if (!selected || !window.ProtivaTrust) return;
+      const name = ($("#menuDishName").value || "").trim();
+      const price = Number($("#menuDishPrice").value) || 10;
+      if (!name) {
+        toast("请填写菜单上的菜名");
+        return;
+      }
+      const est = window.ProtivaTrust.estimateFromName(name, price);
+      window.ProtivaTrust.addUserDish(selected.restaurant.id, {
+        name,
+        price,
+        protein: est.protein,
+        kcal: est.kcal,
+        tags: est.tags,
+        askLocal: `I'd like the ${name}, please.`,
+      });
+      refreshCatalogTrust();
+      closeMenuSheet();
+      closeDetail();
+      renderHome();
+      toast(`已加入真实菜：${name}。下次会优先推荐已确认菜单。`);
     });
     $("#btnCloseSheet").addEventListener("click", closeDetail);
     $("#overlay").addEventListener("click", (e) => {

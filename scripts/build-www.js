@@ -34,6 +34,7 @@ const files = [
   "app.js",
   "geo.js",
   "monetization.js",
+  "trust.js",
   "privacy.html",
   "terms.html",
   "manifest.webmanifest",

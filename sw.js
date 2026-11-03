@@ -7,6 +7,7 @@ const SHELL = [
   "./app.js",
   "./geo.js",
   "./monetization.js",
+  "./trust.js",
   "./manifest.webmanifest",
   "./privacy.html",
   "./terms.html",
