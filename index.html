@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Williams Wu 的个人主页——记录想法、作品与足迹。"
+    />
+    <title>Williams Wu · 个人主页</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=ZCOOL+XiaoWei&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true">
+      <div class="mist mist-a"></div>
+      <div class="mist mist-b"></div>
+      <svg class="ridge" viewBox="0 0 1440 560" preserveAspectRatio="xMidYMax slice">
+        <path
+          class="ridge-far"
+          d="M0,360 C180,300 320,420 480,360 C640,300 760,240 920,300 C1080,360 1240,280 1440,320 L1440,560 L0,560 Z"
+        />
+        <path
+          class="ridge-near"
+          d="M0,420 C220,360 360,480 540,420 C720,360 860,320 1040,380 C1220,440 1320,390 1440,410 L1440,560 L0,560 Z"
+        />
+      </svg>
+    </div>
+
+    <header class="top">
+      <a class="logo" href="#top">Williams Wu</a>
+      <nav aria-label="主导航">
+        <a href="#about">关于</a>
+        <a href="#works">作品</a>
+        <a href="#contact">联系</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <p class="brand reveal">Williams Wu</p>
+        <h1 class="reveal delay-1">把想法，慢慢做成可见的东西</h1>
+        <p class="lede reveal delay-2">
+          这里是我的中文主页——记录创作、学习与路上遇见的风景。
+        </p>
+        <div class="cta-row reveal delay-3">
+          <a class="btn primary" href="#about">开始了解</a>
+          <a class="btn ghost" href="#contact">留下问候</a>
+        </div>
+      </section>
+
+      <section id="about" class="section">
+        <p class="eyebrow">关于</p>
+        <h2>安静地做，认真地写</h2>
+        <p class="copy">
+          我喜欢把复杂的事拆成清晰的步骤，再用简洁的界面呈现出来。无论是代码、设计，还是日常笔记，目标都很简单：让人一眼看懂，愿意多停留一会儿。
+        </p>
+      </section>
+
+      <section id="works" class="section">
+        <p class="eyebrow">作品</p>
+        <h2>正在打磨的方向</h2>
+        <ul class="work-list">
+          <li>
+            <span class="work-title">个人站点</span>
+            <span class="work-desc">以中文为默认语言的展示与写作入口</span>
+          </li>
+          <li>
+            <span class="work-title">学习笔记</span>
+            <span class="work-desc">把踩过的坑整理成可复用的经验</span>
+          </li>
+          <li>
+            <span class="work-title">小工具</span>
+            <span class="work-desc">服务日常工作的轻量脚本与页面</span>
+          </li>
+        </ul>
+      </section>
+
+      <section id="contact" class="section contact">
+        <p class="eyebrow">联系</p>
+        <h2>想聊一聊？</h2>
+        <p class="copy">欢迎通过邮件联系，或在 GitHub 上留言。</p>
+        <div class="cta-row">
+          <a class="btn primary" href="mailto:williamswu1987@gmail.com">发送邮件</a>
+          <a
+            class="btn ghost"
+            href="https://github.com/williamswu1987-cmd"
+            target="_blank"
+            rel="noopener noreferrer"
+            >访问 GitHub</a
+          >
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>© <span id="year"></span> Williams Wu · 中文界面</p>
+    </footer>
+
+    <script src="main.js"></script>
+  </body>
+</html>
