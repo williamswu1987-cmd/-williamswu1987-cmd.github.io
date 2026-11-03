@@ -235,6 +235,18 @@
             <div class="label">给服务员看 · 点餐句</div>
             <p id="askLocal"></p>
           </div>
+          <div class="coach" id="coachBlock" hidden>
+            <div class="coach-head">
+              <div class="label" id="coachLabel">到店点餐助手</div>
+              <div class="coach-flags" id="coachFlags"></div>
+            </div>
+            <ul class="coach-reasons" id="coachReasons"></ul>
+            <div class="coach-say">
+              <div class="label" id="coachLangLabel">请对厨师 / 服务员说</div>
+              <ol id="coachLines"></ol>
+            </div>
+            <p class="coach-hint">按本餐剩余热量/蛋白自动生成，用餐厅听得懂的话。</p>
+          </div>
           <p class="confidence" id="confidence"></p>
           <div class="trust-block">
             <p class="trust-label">帮我们变准（比纯估算重要）</p>
@@ -248,7 +260,7 @@
           </div>
           <div class="actions">
             <button class="cta" id="btnNavigate" type="button">步行导航</button>
-            <button class="cta light" id="btnCopyPhrase" type="button">复制点餐句</button>
+            <button class="cta light" id="btnCopyPhrase" type="button">复制点餐句 / 助手话术</button>
             <button class="cta light" id="btnAddMenu" type="button">上传菜单 / 补真实菜</button>
             <button class="cta coral" id="btnLogMeal" type="button">吃完了 · 扣今日额度</button>
             <button class="cta light" id="btnCloseSheet" type="button">关闭</button>
@@ -297,6 +309,7 @@
     <script src="geo.js"></script>
     <script src="trust.js"></script>
     <script src="monetization.js"></script>
+    <script src="coach.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

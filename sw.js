@@ -1,5 +1,5 @@
 /* Protiva service worker — app shell offline; live map APIs always network. */
-const CACHE = "protiva-shell-v1";
+const CACHE = "protiva-shell-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const SHELL = [
   "./geo.js",
   "./monetization.js",
   "./trust.js",
+  "./coach.js",
   "./manifest.webmanifest",
   "./privacy.html",
   "./terms.html",

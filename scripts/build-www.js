@@ -35,6 +35,7 @@ const files = [
   "geo.js",
   "monetization.js",
   "trust.js",
+  "coach.js",
   "privacy.html",
   "terms.html",
   "manifest.webmanifest",

@@ -759,6 +759,97 @@ img {
   line-height: 1.35;
 }
 
+.coach {
+  background: linear-gradient(165deg, rgba(8, 58, 68, 0.06), rgba(232, 246, 244, 0.9));
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.coach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.coach .label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.coach-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.coach-flag {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.coach-flag.hot {
+  background: rgba(196, 86, 52, 0.14);
+  color: #9a3d22;
+}
+
+.coach-flag.cool {
+  background: rgba(6, 90, 110, 0.12);
+  color: #0a5a6c;
+}
+
+.coach-reasons {
+  margin: 0 0 10px;
+  padding-left: 1.1rem;
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.coach-say {
+  background: var(--sea-800);
+  color: var(--foam);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.coach-say .label {
+  color: rgba(232, 246, 244, 0.65);
+  margin-bottom: 6px;
+}
+
+.coach-say ol {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.coach-say li {
+  font-size: 0.98rem;
+  font-weight: 650;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.coach-say li:last-child {
+  margin-bottom: 0;
+}
+
+.coach-hint {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .confidence {
   font-size: 0.78rem;
   color: var(--muted);

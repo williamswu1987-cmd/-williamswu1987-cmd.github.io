@@ -23,6 +23,8 @@
   /** Active restaurant catalog — live GPS or Tivat demo seed */
   let catalog = null;
   let locating = false;
+  /** Last kitchen-coach payload for the open dish sheet */
+  let lastCoach = null;
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -539,6 +541,7 @@
     const t = tasteScore(dish) + (window.ProtivaTrust?.tasteBoost(dish.id) || 0);
     $("#statTaste").textContent = t >= 7 ? "很赞" : t >= 5.5 ? "好吃" : "还行";
     $("#askLocal").textContent = dish.askLocal;
+    renderCoach(dish);
     const conf = Math.round(
       Math.min(0.98, (dish.confidence || 0.5) + (window.ProtivaTrust?.confidenceBoost(dish.id) || 0)) * 100
     );
@@ -553,9 +556,45 @@
     $("#overlay").classList.add("open");
   }
 
+  function renderCoach(dish) {
+    const block = $("#coachBlock");
+    const reasonsEl = $("#coachReasons");
+    const linesEl = $("#coachLines");
+    const flagsEl = $("#coachFlags");
+    const langLabel = $("#coachLangLabel");
+    if (!block || !window.ProtivaCoach) {
+      lastCoach = null;
+      if (block) block.hidden = true;
+      return;
+    }
+    const coach = window.ProtivaCoach.buildCoach({
+      dish,
+      goals: loadGoals(),
+      log: loadLog(),
+      catalog,
+    });
+    lastCoach = coach;
+    if (!coach.needed) {
+      block.hidden = true;
+      reasonsEl.innerHTML = "";
+      linesEl.innerHTML = "";
+      flagsEl.innerHTML = "";
+      return;
+    }
+    block.hidden = false;
+    const flags = [];
+    if (coach.overKcal) flags.push(`<span class="coach-flag hot">热量偏高</span>`);
+    if (coach.lowProtein) flags.push(`<span class="coach-flag cool">蛋白不够</span>`);
+    flagsEl.innerHTML = flags.join("");
+    reasonsEl.innerHTML = (coach.reasons || []).map((r) => `<li>${r}</li>`).join("");
+    linesEl.innerHTML = (coach.localLines || []).map((l) => `<li>${l}</li>`).join("");
+    langLabel.textContent = `请对厨师 / 服务员说（${coach.langLabel || coach.lang}）`;
+  }
+
   function closeDetail() {
     $("#overlay").classList.remove("open");
     selected = null;
+    lastCoach = null;
   }
 
   function openMenuSheet() {
@@ -912,11 +951,19 @@
     });
     $("#btnCopyPhrase").addEventListener("click", async () => {
       if (!selected) return;
+      const text =
+        lastCoach?.needed && lastCoach.local
+          ? lastCoach.local
+          : selected.askLocal;
       try {
-        await navigator.clipboard.writeText(selected.askLocal);
-        toast("点餐句已复制，给服务员看就行");
+        await navigator.clipboard.writeText(text);
+        toast(
+          lastCoach?.needed
+            ? "已复制点餐句 + 厨房助手话术，给服务员看"
+            : "点餐句已复制，给服务员看就行"
+        );
       } catch {
-        toast(selected.askLocal);
+        toast(text);
       }
     });
     $("#btnLogMeal").addEventListener("click", logSelectedMeal);
