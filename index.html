@@ -120,6 +120,17 @@
               </div>
             </div>
             <div class="field">
+              <label for="deficitTarget">每日目标热量差（减脂）</label>
+              <select id="deficitTarget" required>
+                <option value="500">500 kcal · 温和</option>
+                <option value="600">600 kcal · 推荐</option>
+                <option value="650">650 kcal</option>
+                <option value="700">700 kcal · 积极</option>
+                <option value="750">750 kcal · 上限（容易饿）</option>
+              </select>
+            </div>
+            <p class="note" id="deficitHint">建议 500–700 kcal。超过 750 不建议：会很饿、难坚持。最后一餐会按步数 + 已吃热量，算出还要再消耗多少 / 再走多少步。</p>
+            <div class="field">
               <label for="diet">忌口</label>
               <select id="diet">
                 <option value="none">无限制</option>
@@ -162,6 +173,18 @@
             </div>
           </div>
 
+          <div class="deficit-card" id="deficitCard">
+            <div class="deficit-head">
+              <h3>热量差 · 最后一餐</h3>
+              <span class="deficit-target" id="deficitTargetChip">目标 −600</span>
+            </div>
+            <div class="field deficit-steps">
+              <label for="todaySteps">今日步数</label>
+              <input id="todaySteps" type="number" min="0" max="100000" step="100" inputmode="numeric" placeholder="例如 6500" />
+            </div>
+            <div class="deficit-body" id="deficitPanel"></div>
+          </div>
+
           <div class="pref-block">
             <div class="field" style="margin-bottom: 8px">
               <label>推荐偏好</label>
@@ -184,7 +207,7 @@
             <button class="cta" id="btnUseLocation" type="button">用我的定位刷新</button>
             <button class="cta light" id="btnOpenPro" type="button">升级 Protiva Pro</button>
             <button class="cta light" id="btnUseDemo" type="button">改用 Tivat 演示菜单</button>
-            <button class="cta light" id="btnDemoPitch" type="button">演示剧本：剩 1050 卡 / 120g 蛋白</button>
+            <button class="cta light" id="btnDemoPitch" type="button">演示剧本：最后一餐 · 热量差 −600</button>
             <button class="cta light" id="btnEditGoals" type="button">改目标</button>
             <button class="cta light" id="btnResetToday" type="button">重置今日记录</button>
           </div>
@@ -231,6 +254,7 @@
             <div class="stat"><div class="k">价格</div><div class="v" id="statPrice">—</div></div>
           </div>
           <p class="note" id="valueHint" style="margin-top: 0">蛋白性价比约 <strong id="statPp">—</strong> g/€（仅供参考，不是默认排序）</p>
+          <div class="deficit-inline" id="sheetDeficit" hidden></div>
           <div class="phrase">
             <div class="label">给服务员看 · 点餐句（当地 · 英 · 中）</div>
             <div id="askLocal" class="phrase-tri"></div>

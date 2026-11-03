@@ -15,7 +15,14 @@
     protein: 140,
     budget: 25,
     diet: "none",
+    /** Daily calorie deficit target (kcal). Recommend 500–700; soft-cap 750. */
+    deficitTarget: 600,
   };
+
+  const DEFICIT_MIN = 300;
+  const DEFICIT_MAX = 750;
+  const DEFICIT_RECOMMEND_LO = 500;
+  const DEFICIT_RECOMMEND_HI = 700;
 
   /** tasty = default; value = 性价比 optional */
   const PREFS = ["tasty", "protein", "nearby", "value"];
@@ -49,9 +56,9 @@
   function loadLog() {
     try {
       const all = JSON.parse(localStorage.getItem(LOG_KEY) || "{}");
-      return all[todayKey()] || { kcal: 0, protein: 0, spent: 0, items: [] };
+      return all[todayKey()] || { kcal: 0, protein: 0, spent: 0, items: [], steps: 0 };
     } catch {
-      return { kcal: 0, protein: 0, spent: 0, items: [] };
+      return { kcal: 0, protein: 0, spent: 0, items: [], steps: 0 };
     }
   }
 
@@ -155,6 +162,78 @@
     return remainKcal / mealsLeft;
   }
 
+  function clampDeficit(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return defaults.deficitTarget;
+    return Math.min(DEFICIT_MAX, Math.max(DEFICIT_MIN, Math.round(v / 50) * 50));
+  }
+
+  /** ~0.0375 kcal/step at 75 kg — scales with body weight. */
+  function kcalPerStep(weightKg) {
+    return (Number(weightKg) || defaults.weightKg) * 0.0005;
+  }
+
+  function stepsBurnKcal(steps, weightKg) {
+    return Math.round((Number(steps) || 0) * kcalPerStep(weightKg));
+  }
+
+  function stepsForKcal(kcalNeed, weightKg) {
+    const per = kcalPerStep(weightKg);
+    if (per <= 0) return 0;
+    const need = Math.max(0, Number(kcalNeed) || 0);
+    return Math.ceil(need / per / 100) * 100;
+  }
+
+  function mealsProgress(goals, log) {
+    const mealsPerDay = Number(goals?.mealsPerDay) || 3;
+    const eatenCount = Array.isArray(log?.items) ? log.items.length : 0;
+    const mealsLeft = Math.max(0, mealsPerDay - eatenCount);
+    return {
+      mealsPerDay,
+      eatenCount,
+      mealsLeft,
+      isLastMeal: mealsLeft === 1,
+      isDone: mealsLeft === 0,
+    };
+  }
+
+  /**
+   * End-of-day deficit coach: maintenance (TDEE) + step burn − intake.
+   * lastMealKcal = planned/selected last dish (0 when computing the meal cap).
+   */
+  function buildDeficitPlan(goals, log, lastMealKcal = 0) {
+    const nutrition = suggestNutrition(goals);
+    const maintenance = nutrition.tdee;
+    const target = clampDeficit(goals.deficitTarget ?? defaults.deficitTarget);
+    const steps = Math.max(0, Number(log?.steps) || 0);
+    const stepBurn = stepsBurnKcal(steps, goals.weightKg);
+    const eaten = Math.max(0, Number(log?.kcal) || 0);
+    const mealK = Math.max(0, Number(lastMealKcal) || 0);
+    const intake = eaten + mealK;
+    const projected = Math.round(maintenance + stepBurn - intake);
+    const burnStillNeeded = Math.max(0, target - projected);
+    const stepsStillNeeded = stepsForKcal(burnStillNeeded, goals.weightKg);
+    const lastMealCap = Math.max(0, Math.round(maintenance + stepBurn - eaten - target));
+    const progress = mealsProgress(goals, log);
+    return {
+      maintenance,
+      bmr: nutrition.bmr,
+      target,
+      steps,
+      stepBurn,
+      eaten,
+      lastMealKcal: mealK,
+      projected,
+      burnStillNeeded,
+      stepsStillNeeded,
+      lastMealCap,
+      hit: projected >= target,
+      recommendLo: DEFICIT_RECOMMEND_LO,
+      recommendHi: DEFICIT_RECOMMEND_HI,
+      ...progress,
+    };
+  }
+
   function useSeedCatalog() {
     catalog = {
       ...window.PROTIVA_DATA,
@@ -196,11 +275,16 @@
   }
 
   function rankDishes(goals, log, pref = loadPref()) {
-    const remainKcal = Math.max(0, goals.kcal - log.kcal);
+    const deficit = buildDeficitPlan(goals, log, 0);
+    let remainKcal = Math.max(0, goals.kcal - log.kcal);
+    // Last meal: also respect deficit-aware cap so dinner doesn't wipe the heat gap.
+    if (deficit.isLastMeal) {
+      remainKcal = Math.min(remainKcal, deficit.lastMealCap);
+    }
     const remainProtein = Math.max(0, goals.protein - log.protein);
     const remainBudget = Math.max(0, goals.budget - log.spent);
     const proteinNeed = mealProteinTarget(remainProtein, goals, log);
-    const mealKcal = mealKcalBudget(remainKcal, goals, log);
+    const mealKcal = deficit.isLastMeal ? remainKcal : mealKcalBudget(remainKcal, goals, log);
 
     const enriched = flattenDishes()
       .filter((d) => dietOk(d, goals.diet))
@@ -377,7 +461,19 @@
     $("#protein").value = goals.protein;
     $("#budget").value = goals.budget;
     $("#diet").value = goals.diet;
+    const defSelect = $("#deficitTarget");
+    if (defSelect) {
+      const d = String(clampDeficit(goals.deficitTarget ?? defaults.deficitTarget));
+      if (![...defSelect.options].some((o) => o.value === d)) {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = `${d} kcal`;
+        defSelect.appendChild(opt);
+      }
+      defSelect.value = d;
+    }
     updateSuggestMeta(goals);
+    updateDeficitHint();
   }
 
   function readProfileFromForm() {
@@ -399,7 +495,22 @@
       ...profile,
       kcal: Number($("#kcal").value) || defaults.kcal,
       protein: Number($("#protein").value) || defaults.protein,
+      deficitTarget: clampDeficit($("#deficitTarget")?.value || defaults.deficitTarget),
     };
+  }
+
+  function updateDeficitHint() {
+    const el = $("#deficitHint");
+    const sel = $("#deficitTarget");
+    if (!el || !sel) return;
+    const v = clampDeficit(sel.value);
+    if (v > DEFICIT_RECOMMEND_HI) {
+      el.textContent = `已选 ${v} kcal：接近上限，容易饿，不建议长期。推荐区间 ${DEFICIT_RECOMMEND_LO}–${DEFICIT_RECOMMEND_HI}。`;
+    } else if (v < DEFICIT_RECOMMEND_LO) {
+      el.textContent = `已选 ${v} kcal：偏温和。推荐 ${DEFICIT_RECOMMEND_LO}–${DEFICIT_RECOMMEND_HI}；上限勿超 ${DEFICIT_MAX}。`;
+    } else {
+      el.textContent = `建议 ${DEFICIT_RECOMMEND_LO}–${DEFICIT_RECOMMEND_HI} kcal。超过 ${DEFICIT_MAX} 不建议：会很饿、难坚持。最后一餐会按步数 + 已吃热量，算出还要再消耗多少 / 再走多少步。`;
+    }
   }
 
   function activityLabel(activity) {
@@ -436,6 +547,69 @@
     $("#rankList").innerHTML = `<div class="empty">${msg}</div>`;
   }
 
+  function renderDeficitPanel(goals, log) {
+    const plan = buildDeficitPlan(goals, log, 0);
+    const chip = $("#deficitTargetChip");
+    const panel = $("#deficitPanel");
+    const stepsInput = $("#todaySteps");
+    const card = $("#deficitCard");
+    if (chip) chip.textContent = `目标 −${plan.target}`;
+    if (stepsInput && document.activeElement !== stepsInput) {
+      stepsInput.value = plan.steps ? String(plan.steps) : "";
+    }
+    if (!panel) return plan;
+
+    if (card) {
+      card.classList.toggle("is-last", plan.isLastMeal);
+      card.classList.toggle("is-done", plan.isDone);
+    }
+
+    const lines = [];
+    lines.push(
+      `<p class="deficit-meta">维持≈${plan.maintenance} · 已吃 ${Math.round(plan.eaten)} · 步数消耗≈${plan.stepBurn} kcal</p>`
+    );
+
+    if (plan.isDone) {
+      const finalPlan = buildDeficitPlan(goals, log, 0);
+      if (finalPlan.hit) {
+        lines.push(
+          `<p class="deficit-main ok">今日热量差约 <strong>−${finalPlan.projected}</strong> kcal，已达到目标 −${finalPlan.target}。</p>`
+        );
+      } else {
+        lines.push(
+          `<p class="deficit-main warn">今日热量差约 <strong>−${finalPlan.projected}</strong> kcal，距目标 −${finalPlan.target} 还差 <strong>${finalPlan.burnStillNeeded}</strong> kcal（约再走 <strong>${finalPlan.stepsStillNeeded.toLocaleString()}</strong> 步）。</p>`
+        );
+      }
+    } else if (plan.isLastMeal) {
+      lines.push(
+        `<p class="deficit-main">最后一餐建议 ≤ <strong>${plan.lastMealCap}</strong> kcal，才能靠饮食压出 −${plan.target} 的热量差。</p>`
+      );
+      if (plan.lastMealCap === 0) {
+        lines.push(
+          `<p class="deficit-sub">已吃偏多：这餐尽量清淡，或再消耗 <strong>${Math.max(
+            0,
+            Math.round(plan.eaten + plan.target - plan.maintenance - plan.stepBurn)
+          )}</strong> kcal / 约 <strong>${plan.stepsStillNeeded.toLocaleString()}</strong> 步。</p>`
+        );
+      } else {
+        lines.push(
+          `<p class="deficit-sub">若这餐按上限吃完，预计差约 −${plan.target}。吃得更少则差更大；超了就靠多走路补。</p>`
+        );
+      }
+    } else {
+      const remainMeals = plan.mealsLeft;
+      lines.push(
+        `<p class="deficit-main">还剩 ${remainMeals} 餐。先记下今日步数；到<strong>最后一餐</strong>会按「维持热量 + 步数消耗 − 已吃」算出：这餐最多吃多少，以及还要再消耗多少卡 / 再走多少步。</p>`
+      );
+      lines.push(
+        `<p class="deficit-sub">目标热量差 −${plan.target} kcal（档案可改；建议 ${plan.recommendLo}–${plan.recommendHi}，勿超 ${DEFICIT_MAX}）。</p>`
+      );
+    }
+
+    panel.innerHTML = lines.join("");
+    return plan;
+  }
+
   function renderHome() {
     const goals = loadGoals();
     const log = loadLog();
@@ -452,8 +626,11 @@
       const meals = goals.mealsPerDay || 3;
       const eaten = log.items?.length || 0;
       const left = Math.max(0, meals - eaten);
-      homeLede.textContent = `今日 ${meals} 餐制 · 已记 ${eaten} 餐 · 还剩 ${left} 餐额度。先满足：不超卡 · 蛋白够；偏好可切换。`;
+      const def = clampDeficit(goals.deficitTarget ?? defaults.deficitTarget);
+      homeLede.textContent = `今日 ${meals} 餐制 · 已记 ${eaten} 餐 · 还剩 ${left} 餐 · 热量差目标 −${def} kcal。先满足：不超卡 · 蛋白够。`;
     }
+
+    renderDeficitPanel(goals, log);
 
     updateLocationChip();
 
@@ -543,6 +720,7 @@
     $("#statTaste").textContent = t >= 7 ? "很赞" : t >= 5.5 ? "好吃" : "还行";
     renderAskPhrase(dish);
     renderCoach(dish);
+    renderSheetDeficit(dish);
     const conf = Math.round(
       Math.min(0.98, (dish.confidence || 0.5) + (window.ProtivaTrust?.confidenceBoost(dish.id) || 0)) * 100
     );
@@ -567,6 +745,35 @@
     }
     lastAsk = null;
     el.textContent = dish.askLocal || "";
+  }
+
+  function renderSheetDeficit(dish) {
+    const el = $("#sheetDeficit");
+    if (!el) return;
+    const goals = loadGoals();
+    const log = loadLog();
+    const progress = mealsProgress(goals, log);
+    if (!progress.isLastMeal && !progress.isDone) {
+      el.hidden = true;
+      el.innerHTML = "";
+      return;
+    }
+    const mealK = mid(dish.kcal);
+    const plan = buildDeficitPlan(goals, log, progress.isDone ? 0 : mealK);
+    el.hidden = false;
+    if (progress.isDone) {
+      el.innerHTML = plan.hit
+        ? `<strong>热量差</strong> 今日约 −${plan.projected} kcal（目标 −${plan.target}）· 已达成`
+        : `<strong>热量差</strong> 今日约 −${plan.projected} kcal · 还差 ${plan.burnStillNeeded} kcal ≈ 再走 ${plan.stepsStillNeeded.toLocaleString()} 步`;
+      return;
+    }
+    if (plan.hit) {
+      el.innerHTML = `<strong>最后一餐 · 热量差</strong> 吃这道后预计约 −${plan.projected} kcal（目标 −${plan.target}）· 已够，不必再强制多走`;
+    } else {
+      el.innerHTML = `<strong>最后一餐 · 热量差</strong> 吃这道（约 ${Math.round(
+        mealK
+      )} kcal）后，还需再消耗 <strong>${plan.burnStillNeeded}</strong> kcal，约再走 <strong>${plan.stepsStillNeeded.toLocaleString()}</strong> 步`;
+    }
   }
 
   function renderCoach(dish) {
@@ -692,16 +899,31 @@
       protein: 160,
       budget: 25,
       diet: "none",
+      deficitTarget: 600,
     };
     saveGoals(goals);
+    // Two meals logged → last-meal mode for deficit coach
     saveLog({
-      kcal: 1150,
-      protein: 40,
-      spent: 8,
-      items: [{ id: "demo-breakfast", at: Date.now() }],
+      kcal: 1600,
+      protein: 95,
+      spent: 18,
+      steps: 5500,
+      items: [
+        { id: "demo-breakfast", at: Date.now() - 3600000 },
+        { id: "demo-lunch", at: Date.now() - 1800000 },
+      ],
     });
     renderHome();
-    toast("演示额度已就绪：1050 卡 / 120g 蛋白（Tivat 菜单）");
+    toast("演示：最后一餐 · 已吃 1600 · 5500 步 · 热量差目标 −600");
+  }
+
+  function saveTodaySteps(raw) {
+    const log = loadLog();
+    const steps = Math.max(0, Math.min(100000, Math.round(Number(raw) || 0)));
+    log.steps = steps;
+    if (!Array.isArray(log.items)) log.items = [];
+    saveLog(log);
+    return log;
   }
 
   function withTimeout(promise, ms, label) {
@@ -837,6 +1059,15 @@
       });
     });
     $("#btnRecalc")?.addEventListener("click", () => applySuggestedNutrition({ toastMsg: true }));
+    $("#deficitTarget")?.addEventListener("change", updateDeficitHint);
+
+    const stepsInput = $("#todaySteps");
+    const persistSteps = () => {
+      saveTodaySteps(stepsInput?.value);
+      renderHome();
+    };
+    stepsInput?.addEventListener("change", persistSteps);
+    stepsInput?.addEventListener("blur", persistSteps);
 
     $("#btnSkipDemo").addEventListener("click", async () => {
       if (!localStorage.getItem(STORAGE_KEY)) saveGoals(defaults);

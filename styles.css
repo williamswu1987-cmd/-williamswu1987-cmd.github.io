@@ -524,6 +524,82 @@ img {
   color: var(--muted);
 }
 
+.deficit-card {
+  margin: 0 0 16px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(232, 246, 244, 0.75));
+}
+
+.deficit-card.is-last {
+  border-color: rgba(6, 90, 110, 0.35);
+  box-shadow: 0 0 0 1px rgba(6, 90, 110, 0.08);
+}
+
+.deficit-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.deficit-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.deficit-target {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: #0a5a6c;
+  background: rgba(6, 90, 110, 0.1);
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.deficit-steps {
+  margin-bottom: 8px;
+}
+
+.deficit-meta,
+.deficit-sub {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.deficit-main {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.deficit-main.ok {
+  color: #0a5a6c;
+}
+
+.deficit-main.warn {
+  color: #9a3d22;
+}
+
+.deficit-inline {
+  margin: 0 0 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(6, 90, 110, 0.08);
+  border: 1px solid rgba(6, 90, 110, 0.16);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
 .section-label {
   display: flex;
   align-items: baseline;
