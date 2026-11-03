@@ -203,6 +203,7 @@
 
   function logSelectedMeal() {
     if (!selected) return;
+    const name = selected.name;
     const log = loadLog();
     log.kcal += mid(selected.kcal);
     log.protein += mid(selected.protein);
@@ -211,7 +212,7 @@
     saveLog(log);
     closeDetail();
     renderHome();
-    toast(`已记录：${selected.name}。今日剩余已更新。`);
+    toast(`已记录：${name}。今日剩余已更新。`);
   }
 
   function resetToday() {
