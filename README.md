@@ -5,15 +5,17 @@
 
 ## 现在怎么用（推荐）
 
-1. 合并 / 部署到 GitHub Pages 后，用**手机 Safari / Chrome** 打开站点  
+**线上地址（已部署，HTTPS）：**  
+https://185-222-242-227.sslip.io/protiva/
+
+1. 用**手机 Safari / Chrome** 打开上面链接  
 2. **添加到主屏幕**（PWA）：  
    - iPhone：分享 →「添加到主屏幕」  
    - Android Chrome：菜单 →「安装应用」/「添加到主屏幕」  
 3. 允许定位，设目标，看附近 Top 3  
 4. 自己用 1–2 周，再给 5–10 个朋友试  
 
-Pages 地址（部署后）：  
-`https://williamswu1987-cmd.github.io/-williamswu1987-cmd.github.io/`
+可选：在 GitHub 仓库 Settings → Pages 打开 `main` 根目录，也可走 GitHub Pages。
 
 ## 产品
 
