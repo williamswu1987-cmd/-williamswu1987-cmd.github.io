@@ -1,5 +1,7 @@
 # Protiva 上架 App Store & 赚钱路线
 
+> **当前阶段**：先用 GitHub Pages + PWA 获客验证。确认有人愿意付费后，再走下面的 App Store 流程。
+
 当前仓库已具备：
 
 - 可运行的产品（定位 + 推荐 + 偏好）

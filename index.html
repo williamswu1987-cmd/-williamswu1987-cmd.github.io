@@ -4,11 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062a32" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Protiva" />
     <meta
       name="description"
       content="Protiva — 开定位，推好吃、不超卡、蛋白够的附近一盘。性价比可选。"
     />
     <title>Protiva · 附近好饭</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -34,6 +41,10 @@
           <button class="cta" id="btnLocateHero" type="button">开启定位，看附近 Top 3</button>
           <button class="cta secondary" id="btnStart" type="button">先设置今日目标</button>
           <button class="cta secondary" id="btnSkipDemo" type="button">先看演示（可稍后定位）</button>
+          <button class="cta secondary" id="btnInstall" type="button" hidden>安装到手机主屏幕</button>
+          <p class="install-hint" id="installHint">
+            iPhone：Safari 打开 → 分享 →「添加到主屏幕」
+          </p>
         </div>
       </section>
 

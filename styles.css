@@ -249,6 +249,13 @@ img {
   color: white;
 }
 
+.install-hint {
+  margin: 12px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: rgba(232, 246, 244, 0.7);
+}
+
 /* —— Shared panels —— */
 .topbar {
   display: flex;

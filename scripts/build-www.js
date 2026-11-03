@@ -36,6 +36,8 @@ const files = [
   "monetization.js",
   "privacy.html",
   "terms.html",
+  "manifest.webmanifest",
+  "sw.js",
 ];
 
 for (const f of files) {

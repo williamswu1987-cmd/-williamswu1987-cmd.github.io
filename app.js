@@ -522,9 +522,45 @@
     if (tryLocate) await locateAndLoad();
   }
 
+  function registerPwa() {
+    if (!("serviceWorker" in navigator)) return;
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch((err) => console.warn("SW", err));
+    });
+
+    let deferredPrompt = null;
+    const installBtn = $("#btnInstall");
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (installBtn) installBtn.hidden = false;
+    });
+    installBtn?.addEventListener("click", async () => {
+      if (!deferredPrompt) {
+        toast("请用手机浏览器菜单里的「添加到主屏幕」");
+        return;
+      }
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.hidden = true;
+    });
+
+    // Hide browser install hint when already running as installed PWA
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+    if (isStandalone) {
+      const hint = $("#installHint");
+      if (hint) hint.hidden = true;
+      if (installBtn) installBtn.hidden = true;
+    }
+  }
+
   function boot() {
     const goals = loadGoals();
     const hasSetup = localStorage.getItem(STORAGE_KEY);
+    registerPwa();
 
     $("#btnStart").addEventListener("click", () => {
       fillGoalsForm(goals);
