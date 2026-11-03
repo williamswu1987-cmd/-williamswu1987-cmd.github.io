@@ -224,19 +224,39 @@
               <h3>Deficit · last meal</h3>
               <span class="deficit-target" id="deficitTargetChip">Target −600</span>
             </div>
-            <div class="field deficit-steps">
-              <label for="todaySteps">Steps today</label>
-              <input
-                id="todaySteps"
-                type="number"
-                min="0"
-                max="100000"
-                step="100"
-                inputmode="numeric"
-                placeholder="e.g. 6500"
-              />
+            <div class="deficit-steps-row">
+              <div class="field deficit-steps">
+                <label for="todaySteps">Steps today</label>
+                <input
+                  id="todaySteps"
+                  type="number"
+                  min="0"
+                  max="100000"
+                  step="100"
+                  inputmode="numeric"
+                  placeholder="e.g. 6500"
+                />
+              </div>
+              <div class="deficit-steps-actions">
+                <button class="cta light deficit-sync" id="btnSyncHealth" type="button">
+                  Sync Health
+                </button>
+                <button class="cta light deficit-sync" id="btnOpenHealth" type="button">
+                  Open Health app
+                </button>
+              </div>
+            </div>
+            <p class="deficit-source" id="stepsSourceLabel">Source: manual</p>
+            <div class="deficit-walk" id="deficitWalkNeed" hidden>
+              <span class="deficit-walk-label">Walk still needed</span>
+              <strong id="deficitWalkSteps">—</strong>
+              <span class="deficit-walk-kcal" id="deficitWalkKcal"></span>
             </div>
             <div class="deficit-body" id="deficitPanel"></div>
+            <label class="deficit-notify">
+              <input type="checkbox" id="chkStepNotify" checked />
+              Notify at 6pm · after last meal
+            </label>
           </div>
 
           <div class="pref-block">
@@ -407,6 +427,7 @@
     <script src="trust.js"></script>
     <script src="monetization.js"></script>
     <script src="coach.js"></script>
+    <script src="steps.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

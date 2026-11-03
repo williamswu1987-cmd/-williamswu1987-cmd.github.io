@@ -848,6 +848,39 @@
     $("#rankList").innerHTML = `<div class="empty">${msg}</div>`;
   }
 
+  function currentDeficitPlan() {
+    return buildDeficitPlan(loadGoals(), loadLog(), 0);
+  }
+
+  function updateStepsSourceLabel() {
+    const el = $("#stepsSourceLabel");
+    if (!el) return;
+    const src = window.FitBiteSteps?.stepsSource?.() || "manual";
+    const map = {
+      health: "Source: Apple Health / Google Fit (live)",
+      manual: "Source: manual entry",
+      web: "Source: web · Health sync needs the native app",
+    };
+    el.textContent = map[src] || `Source: ${src}`;
+  }
+
+  function renderWalkNeed(plan) {
+    const box = $("#deficitWalkNeed");
+    const stepsEl = $("#deficitWalkSteps");
+    const kcalEl = $("#deficitWalkKcal");
+    if (!box || !stepsEl || !kcalEl) return;
+    box.hidden = false;
+    if (plan.hit) {
+      box.classList.add("is-hit");
+      stepsEl.textContent = "On track";
+      kcalEl.textContent = `≈ −${plan.projected} / −${plan.target} kcal`;
+    } else {
+      box.classList.remove("is-hit");
+      stepsEl.textContent = `${plan.stepsStillNeeded.toLocaleString()} steps`;
+      kcalEl.textContent = `≈ ${plan.burnStillNeeded} kcal still to burn`;
+    }
+  }
+
   function renderDeficitPanel(goals, log) {
     const plan = buildDeficitPlan(goals, log, 0);
     const chip = $("#deficitTargetChip");
@@ -858,6 +891,8 @@
     if (stepsInput && document.activeElement !== stepsInput) {
       stepsInput.value = plan.steps ? String(plan.steps) : "";
     }
+    updateStepsSourceLabel();
+    renderWalkNeed(plan);
     if (!panel) return plan;
 
     if (card) {
@@ -867,7 +902,7 @@
 
     const lines = [];
     lines.push(
-      `<p class="deficit-meta">Maint.≈${plan.maintenance} · eaten ${Math.round(plan.eaten)} · steps≈${plan.stepBurn} kcal</p>`
+      `<p class="deficit-meta">Maint.≈${plan.maintenance} · eaten ${Math.round(plan.eaten)} · steps ${plan.steps.toLocaleString()} ≈${plan.stepBurn} kcal</p>`
     );
 
     if (plan.isDone) {
@@ -878,7 +913,7 @@
         );
       } else {
         lines.push(
-          `<p class="deficit-main warn">Deficit ≈ <strong>−${finalPlan.projected}</strong> kcal — still need <strong>${finalPlan.burnStillNeeded}</strong> kcal (~ <strong>${finalPlan.stepsStillNeeded.toLocaleString()}</strong> steps) to hit −${finalPlan.target}.</p>`
+          `<p class="deficit-main warn">Deficit ≈ <strong>−${finalPlan.projected}</strong> kcal — walk <strong>${finalPlan.stepsStillNeeded.toLocaleString()}</strong> more steps (~${finalPlan.burnStillNeeded} kcal) to hit −${finalPlan.target}.</p>`
         );
       }
     } else if (plan.isLastMeal) {
@@ -891,13 +926,13 @@
         );
       } else {
         lines.push(
-          `<p class="deficit-sub">Eat up to that cap for ~−${plan.target}. Eat less → bigger deficit; go over → walk it off.</p>`
+          `<p class="deficit-sub">Eat up to that cap for ~−${plan.target}. Eat less → bigger deficit; go over → walk it off. We’ll notify at 6pm / after this meal.</p>`
         );
       }
     } else {
       const remainMeals = plan.mealsLeft;
       lines.push(
-        `<p class="deficit-main">${remainMeals} meals left. Log steps now; on your <strong>last meal</strong> we’ll compute the max plate size and any extra burn / steps from maint. + steps − eaten.</p>`
+        `<p class="deficit-main">${remainMeals} meals left. Sync Health steps now; on your <strong>last meal</strong> (or at 6pm) we’ll tell you exactly how many steps close the −${plan.target} gap.</p>`
       );
       lines.push(
         `<p class="deficit-sub">Deficit target −${plan.target} kcal (editable; aim ${plan.recommendLo}–${plan.recommendHi}, max ${DEFICIT_MAX}).</p>`
@@ -906,6 +941,33 @@
 
     panel.innerHTML = lines.join("");
     return plan;
+  }
+
+  async function syncHealthSteps({ silent = false } = {}) {
+    if (!window.FitBiteSteps) {
+      if (!silent) toast("Steps module not loaded");
+      return null;
+    }
+    const res = await window.FitBiteSteps.syncFromHealth();
+    if (res.ok && res.steps != null) {
+      saveTodaySteps(res.steps);
+      renderHome();
+      if (!silent) toast(res.message || `Synced ${res.steps.toLocaleString()} steps`);
+      return res;
+    }
+    if (!silent) toast(res?.message || "Could not sync Health steps");
+    updateStepsSourceLabel();
+    return res;
+  }
+
+  async function maybeNotifyAfterLastMeal(beforeProgress, afterLog) {
+    if (!window.FitBiteSteps) return;
+    const goals = loadGoals();
+    const after = mealsProgress(goals, afterLog);
+    // Fire when the user just finished their last meal of the day
+    if (!beforeProgress?.isLastMeal || !after?.isDone) return;
+    const plan = buildDeficitPlan(goals, afterLog, 0);
+    await window.FitBiteSteps.notifyDeficitSteps(plan, "last-meal");
   }
 
   function renderHome() {
@@ -1186,7 +1248,9 @@
   function logSelectedMeal() {
     if (!selected) return;
     const name = selected.name;
+    const goals = loadGoals();
     const log = loadLog();
+    const beforeProgress = mealsProgress(goals, log);
     log.kcal += mid(selected.kcal);
     log.protein += mid(selected.protein);
     log.spent += selected.price;
@@ -1195,6 +1259,7 @@
     closeDetail();
     renderHome();
     toast(`Logged: ${name}. Today’s remaining updated.`);
+    maybeNotifyAfterLastMeal(beforeProgress, log).catch(() => {});
   }
 
   function resetToday() {
@@ -1243,6 +1308,49 @@
     if (!Array.isArray(log.items)) log.items = [];
     saveLog(log);
     return log;
+  }
+
+  function wireStepsControls() {
+    const stepsInput = $("#todaySteps");
+    const persistSteps = () => {
+      window.FitBiteSteps?.markManualSource?.();
+      saveTodaySteps(stepsInput?.value);
+      renderHome();
+    };
+    stepsInput?.addEventListener("change", persistSteps);
+    stepsInput?.addEventListener("blur", persistSteps);
+
+    $("#btnSyncHealth")?.addEventListener("click", () => syncHealthSteps({ silent: false }));
+    $("#btnOpenHealth")?.addEventListener("click", () => {
+      const ok = window.FitBiteSteps?.openHealthApp?.();
+      if (!ok) toast("Open Apple Health or Google Fit, then tap Sync Health here");
+    });
+
+    const chk = $("#chkStepNotify");
+    if (chk && window.FitBiteSteps) {
+      const prefs = window.FitBiteSteps.loadNotifyPrefs();
+      chk.checked = !!prefs.enabled;
+      chk.addEventListener("change", async () => {
+        if (chk.checked) {
+          const ok = await window.FitBiteSteps.enableReminders(currentDeficitPlan);
+          chk.checked = ok;
+          toast(ok ? "6pm + last-meal deficit alerts on" : "Notification permission denied");
+        } else {
+          const prefsNow = window.FitBiteSteps.loadNotifyPrefs();
+          prefsNow.enabled = false;
+          window.FitBiteSteps.saveNotifyPrefs(prefsNow);
+          toast("Deficit step alerts off");
+        }
+      });
+    }
+
+    // Re-sync when returning from Health / Fit on native shells
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") return;
+      if (!window.FitBiteSteps?.isNative?.()) return;
+      if (window.FitBiteSteps.stepsSource() !== "health") return;
+      syncHealthSteps({ silent: true }).catch(() => {});
+    });
   }
 
   function withTimeout(promise, ms, label) {
@@ -1386,13 +1494,12 @@
     $("#btnApplyCalib")?.addEventListener("click", applyCalibration);
     $("#btnClearCalib")?.addEventListener("click", clearCalibration);
 
-    const stepsInput = $("#todaySteps");
-    const persistSteps = () => {
-      saveTodaySteps(stepsInput?.value);
-      renderHome();
-    };
-    stepsInput?.addEventListener("change", persistSteps);
-    stepsInput?.addEventListener("blur", persistSteps);
+    wireStepsControls();
+    window.FitBiteSteps?.bootReminders?.(currentDeficitPlan);
+    // Prefer live Health steps when the native shell is available
+    if (window.FitBiteSteps?.isNative?.()) {
+      syncHealthSteps({ silent: true }).catch(() => {});
+    }
 
     $("#btnSkipDemo").addEventListener("click", async () => {
       if (!localStorage.getItem(STORAGE_KEY)) saveGoals(defaults);
