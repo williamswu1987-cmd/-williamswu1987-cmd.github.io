@@ -610,6 +610,16 @@ img {
   gap: 8px;
 }
 
+.pref-row[aria-label="Sort preference"] {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 380px) {
+  .pref-row[aria-label="Sort preference"] {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .pref-btn {
   appearance: none;
   border: 1px solid var(--line);

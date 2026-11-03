@@ -28,8 +28,8 @@
   const DEFICIT_RECOMMEND_LO = 500;
   const DEFICIT_RECOMMEND_HI = 700;
 
-  /** tasty = default; value = Best value optional */
-  const PREFS = ["tasty", "protein", "nearby", "value"];
+  /** tasty = default; local = regional specialties; value = Best value optional */
+  const PREFS = ["tasty", "local", "protein", "nearby", "value"];
 
   /** Active restaurant catalog — live GPS or Tivat demo seed */
   let catalog = null;
@@ -96,14 +96,44 @@
     const name = dish.name || "";
     const tags = dish.tags || [];
     if (tags.includes("seafood")) s += 2.2;
-    if (/octopus|salmon|steak|grill|shish|teriyaki|tandoori|ceviche|souvlaki|branzino|sea bass/i.test(name))
+    if (/octopus|salmon|steak|grill|shish|teriyaki|tandoori|ceviche|souvlaki|branzino|sea bass|buzara|risotto|lamb|ćevap|cevapi|pljeskavica/i.test(name))
       s += 2;
     if (/chicken breast|chicken plate|grilled chicken/i.test(name)) s += 1.2;
     if (tags.includes("high-protein") && !tags.includes("budget")) s += 0.8;
+    if (tags.includes("local") || tags.includes("specialty")) s += 1.4;
     if (tags.includes("veg") && !/lentil|bean|cottage/i.test(name)) s += 0.6;
     if (/pizza|burger|mixed grill/i.test(name)) s += 0.8;
     if (/cottage cheese|lentil soup|white bean|egg white/i.test(name)) s -= 0.8;
     if (tags.includes("budget") && /soup|yogurt|bean/i.test(name)) s -= 0.5;
+    return s;
+  }
+
+  /**
+   * Local specialty signal — Adriatic / Montenegrin / Balkan dishes and konoba-style cuisine.
+   * Used by the "Local first" sort so visitors see regional food ahead of generic cafe bowls.
+   */
+  function localSpecialtyScore(dish) {
+    if (typeof dish.localScore === "number") return dish.localScore;
+    let s = 0;
+    const name = `${dish.name || ""} ${dish.nameLocal || ""}`;
+    const cuisine = `${dish.restaurant?.cuisine || ""} ${dish.cuisineKey || ""}`;
+    const tags = dish.tags || [];
+
+    if (tags.includes("local") || tags.includes("specialty")) s += 6;
+    if (tags.includes("seafood") && /montenegrin|mediterranean|seafood|balkan|konoba/i.test(cuisine)) s += 2.5;
+
+    if (
+      /njeguš|njegusi|pršut|prsut|kačamak|kacamak|cicvara|raštan|rastan|jagnjetina|brudet|buzara|hobotnica|pastrmka|škripavac|skripavac|kajmak|pljeskavica|ćevap|cevapi|black risotto|crni rižoto|rižoto|lignje|škampi|skampi|brancin|orada|gilthead|sea bass|octopus|mussels|trout|lamb|veal|ribarski|fisherman|boka|adriatic/i.test(
+        name
+      )
+    ) {
+      s += 5;
+    }
+    if (/montenegrin|balkan|konoba|mediterranean|seafood|dalmat|adriatic/i.test(cuisine)) s += 3.5;
+    if (/grill|mesnica|taverna/i.test(cuisine) && tags.includes("pork")) s += 1.5;
+    if (/bowl|wrap|pizza|burger|omelette|yogurt|quinoa|tofu|sandwich|toast|shakshuka/i.test(name)) s -= 2.5;
+    if (tags.includes("budget") && !tags.includes("local")) s -= 1;
+    if (dish.estimated && !tags.includes("local")) s -= 0.8;
     return s;
   }
 
@@ -456,8 +486,9 @@
   function recommendCount(goals, log) {
     const { mealsLeft, isDone } = mealsProgress(goals, log);
     if (isDone) return 0;
-    // One meal left → one best pick; otherwise up to 3 options for this meal.
-    return Math.min(3, Math.max(1, mealsLeft));
+    // One meal left → one best pick; otherwise up to 5 tasty / local options.
+    if (mealsLeft === 1) return 1;
+    return Math.min(5, Math.max(3, mealsLeft + 2));
   }
 
   function rankDishes(goals, log, pref = loadPref()) {
@@ -487,6 +518,7 @@
         const confBoost = window.ProtivaTrust ? window.ProtivaTrust.confidenceBoost(d.id) : 0;
         const confirmed = window.ProtivaTrust && window.ProtivaTrust.isConfirmed(d.id);
         const taste = tasteScore(d) + userTaste + (d.fromUserMenu ? 2 : 0) + (confirmed ? 1.5 : 0);
+        const local = localSpecialtyScore(d) + (confirmed ? 1 : 0) + (d.fromUserMenu ? 1.5 : 0);
         const health = healthScore(d);
         const confidence = Math.min(0.98, (d.confidence || 0.5) + confBoost + (d.fromUserMenu ? 0.3 : 0));
         // Hard constraints: within remaining day budget, and roughly one-meal sized
@@ -503,6 +535,16 @@
             walk * 0.25 +
             confidence * 6 +
             (d.fromUserMenu || confirmed ? 8 : 0);
+        } else if (pref === "local") {
+          // Regional specialties first, still edible for today’s calories / protein
+          score =
+            local * 14 +
+            taste * 3 +
+            health * 0.8 -
+            walk * 0.15 +
+            confidence * 4 +
+            (fitsProtein ? 3 : 0) +
+            (d.fromUserMenu || confirmed ? 6 : 0);
         } else if (pref === "protein") {
           score = p * 2.2 + health * 0.6 + taste * 2 - walk * 0.2 + (confirmed ? 4 : 0);
         } else if (pref === "nearby") {
@@ -516,6 +558,7 @@
           ...d,
           pp,
           taste,
+          local,
           health,
           confidence,
           confirmed: !!confirmed,
@@ -557,6 +600,13 @@
     }
     if (pref === "nearby") {
       return { main: `${d.restaurant.walkMin}`, sub: "min", fit: d.fitsKcal ? "On calories" : "Slightly over" };
+    }
+    if (pref === "local") {
+      return {
+        main: d.local >= 8 ? "Local" : d.local >= 4 ? "Regional" : "Nearby",
+        sub: "",
+        fit: d.fitsKcal && d.fitsProtein ? "On calories · Protein OK" : d.fitsKcal ? "On calories" : "Watch calories",
+      };
     }
     // tasty default
     return {
@@ -1549,7 +1599,13 @@
         savePref(btn.dataset.pref);
         syncPrefButtons(btn.dataset.pref);
         renderHome();
-        const labels = { tasty: "Tasty first", protein: "Protein first", nearby: "Nearest", value: "Best value" };
+        const labels = {
+          tasty: "Tasty first",
+          local: "Local specialty",
+          protein: "Protein first",
+          nearby: "Nearest",
+          value: "Best value",
+        };
         toast(`Switched: ${labels[btn.dataset.pref] || btn.dataset.pref}`);
       });
     });
