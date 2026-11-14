@@ -73,3 +73,11 @@
 ## 长期运行
 
 长时间或无人看管的任务，每次迭代在 `decisions.tsv` 记一行（列见 `skills/decisions-template.tsv`）。只记决策点，不记每个动作。追加写，永不改历史。早上回来先看这份 log，再问 agent 要一份 `skills/09-loop.md` 里的 catch-up。
+
+## 结构强制的规矩
+
+一条规矩要有东西在强制执行它。没有强制的不写进这张表。错已经不可能发生时删掉那一行。
+
+| 规矩 | 强制 |
+| --- | --- |
+| `index.html` 加载的本地文件必须出现在 `scripts/build-www.js` 的复制清单里 | `node scripts/check-www-build.js` |

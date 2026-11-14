@@ -1,0 +1,16 @@
+name: www-build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Page files are copied into www
+        run: node scripts/check-www-build.js
