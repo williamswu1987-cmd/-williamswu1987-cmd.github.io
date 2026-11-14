@@ -398,6 +398,29 @@ img {
   gap: 10px;
 }
 
+.suggest-box {
+  margin: 4px 0 14px;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.suggest-title {
+  margin: 0 0 8px;
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.suggest-title span {
+  display: block;
+  margin-top: 2px;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .pref-block {
   margin-bottom: 16px;
 }
