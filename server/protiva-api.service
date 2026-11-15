@@ -1,0 +1,17 @@
+[Unit]
+Description=Protiva entitlement API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Environment=PROTIVA_API_PORT=8791
+Environment=PROTIVA_DATA=/var/lib/protiva
+Environment=PROTIVA_SECRET=change-me-in-production-protiva-2026
+Environment=PROTIVA_FREE_DAILY=3
+ExecStart=/usr/bin/python3 /opt/protiva/protiva_api.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
