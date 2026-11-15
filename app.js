@@ -579,6 +579,11 @@
           score = pp * 14 + taste * 2 + (fitsProtein ? 4 : 0) + (confirmed ? 3 : 0);
         }
 
+        // Soft-fallback penalty: when over budget, prefer the least-overshoot plate
+        const overshoot = Math.max(0, kHi - remainKcal);
+        if (!fitsKcal) score -= 25 + overshoot * 0.08;
+        if (!fitsProtein) score -= 12;
+
         return {
           ...d,
           pp,
@@ -589,6 +594,9 @@
           confirmed: !!confirmed,
           fitsKcal,
           fitsProtein,
+          kHi,
+          pLo,
+          overshoot,
           score,
           proteinNeed,
           remainKcal,
@@ -606,10 +614,13 @@
       pool = enriched.filter((d) => d.fitsKcal);
     }
     if (pool.length < topN) {
-      pool = enriched;
+      // Prefer least overshoot, then original score
+      pool = [...enriched].sort((a, b) => a.overshoot - b.overshoot || b.score - a.score);
+    } else {
+      pool = pool.sort((a, b) => b.score - a.score);
     }
 
-    return pool.sort((a, b) => b.score - a.score).slice(0, topN);
+    return pool.slice(0, topN);
   }
 
   function scoreBadge(d, pref) {
@@ -1726,8 +1737,18 @@
       showScreen("screen-goals");
     });
 
-    $("#btnResetToday").addEventListener("click", resetToday);
-    $("#btnDemoPitch").addEventListener("click", applyDemoPitch);
+    const keepToolsOpen = () => {
+      const drawer = $("#toolsDrawer");
+      if (drawer) drawer.open = true;
+    };
+    $("#btnResetToday").addEventListener("click", () => {
+      resetToday();
+      keepToolsOpen();
+    });
+    $("#btnDemoPitch").addEventListener("click", () => {
+      applyDemoPitch();
+      keepToolsOpen();
+    });
 
     $$('.pref-row[aria-label="Sort preference"] .pref-btn').forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -1751,6 +1772,7 @@
       locating = false;
       useSeedCatalog();
       renderHome();
+      keepToolsOpen();
       toast("Switched to Tivat demo menu");
     });
     $("#btnOpenPro")?.addEventListener("click", () => openPaywall());

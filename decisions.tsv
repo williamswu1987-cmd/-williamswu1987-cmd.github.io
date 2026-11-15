@@ -2,3 +2,5 @@ timestamp	decision	why	evidence
 2026-11-15T14:20Z	use local calendar dayKey not UTC ISO	evening logs/reminders/free lookups must match phone date in CET+	node: 23:30Z → UTC day 15 vs Podgorica day 16
 2026-11-15T14:25Z	fitsKcal uses range high; fitsProtein uses range low	ranges are intentional; “fits” must hold at the worse edge	smoke + code path in rankDishes
 2026-11-15T14:26Z	log toast shows mid kcal and upper bound	user accepted ranges; mid for ledger, high as risk hint	Playwright log toast after deploy
+2026-11-15T14:40Z	soft-rank by least kcal overshoot when nothing fits	last meal with 200 kcal left was still topping tasty octopus	tight-budget smoke screenshot
+2026-11-15T14:41Z	keep tools drawer open after demo/reset clicks	drawer closed mid-flow and blocked demo pitch clicks in automation	Playwright open_tools helper pain
