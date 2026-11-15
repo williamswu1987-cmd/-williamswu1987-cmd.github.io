@@ -41,8 +41,16 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+  /** Local calendar day (not UTC). Evening logs / reminders must match the phone’s date. */
+  function dayKey(d = new Date()) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
   function todayKey() {
-    return new Date().toISOString().slice(0, 10);
+    return dayKey(new Date());
   }
 
   function loadGoals() {
@@ -74,6 +82,14 @@
 
   function mid([lo, hi]) {
     return (lo + hi) / 2;
+  }
+
+  function rangeLo(pair) {
+    return Array.isArray(pair) ? Number(pair[0]) || 0 : Number(pair) || 0;
+  }
+
+  function rangeHi(pair) {
+    return Array.isArray(pair) ? Number(pair[1]) || rangeLo(pair) : Number(pair) || 0;
   }
 
   function proteinPerEuro(dish) {
@@ -191,7 +207,7 @@
     let loggedDays = 0;
     const cursor = new Date(`${startDate}T12:00:00`);
     for (let i = 0; i < days; i++) {
-      const key = cursor.toISOString().slice(0, 10);
+      const key = dayKey(cursor);
       const day = all[key];
       const k = Number(day?.kcal) || 0;
       if (k > 0) {
@@ -514,6 +530,8 @@
       .map((d) => {
         const p = mid(d.protein);
         const k = mid(d.kcal);
+        const kHi = rangeHi(d.kcal);
+        const pLo = rangeLo(d.protein);
         const pp = proteinPerEuro(d);
         const userTaste = window.ProtivaTrust ? window.ProtivaTrust.tasteBoost(d.id) : 0;
         const confBoost = window.ProtivaTrust ? window.ProtivaTrust.confidenceBoost(d.id) : 0;
@@ -522,9 +540,9 @@
         const local = localSpecialtyScore(d) + (confirmed ? 1 : 0) + (d.fromUserMenu ? 1.5 : 0);
         const health = healthScore(d);
         const confidence = Math.min(0.98, (d.confidence || 0.5) + confBoost + (d.fromUserMenu ? 0.3 : 0));
-        // Hard constraints: within remaining day budget, and roughly one-meal sized
-        const fitsKcal = k <= remainKcal + 25 && k <= mealKcal + 120;
-        const fitsProtein = remainProtein <= 0 ? true : p >= proteinNeed - 3;
+        // Guard with range edges: kcal high / protein low so “fits” means still OK at the worse end
+        const fitsKcal = kHi <= remainKcal + 25 && kHi <= mealKcal + 120;
+        const fitsProtein = remainProtein <= 0 ? true : pLo >= proteinNeed - 3;
         const walk = d.restaurant.walkMin || 1;
 
         let score = 0;
@@ -1401,14 +1419,27 @@
     const goals = loadGoals();
     const log = loadLog();
     const beforeProgress = mealsProgress(goals, log);
-    log.kcal += mid(selected.kcal);
-    log.protein += mid(selected.protein);
+    const kMid = Math.round(mid(selected.kcal));
+    const kHi = Math.round(rangeHi(selected.kcal));
+    const pMid = Math.round(mid(selected.protein));
+    log.kcal += kMid;
+    log.protein += pMid;
     log.spent += selected.price;
-    log.items.push({ id: selected.id, at: Date.now() });
+    log.items.push({
+      id: selected.id,
+      at: Date.now(),
+      kcal: kMid,
+      kcalRange: [rangeLo(selected.kcal), rangeHi(selected.kcal)],
+      protein: pMid,
+    });
     saveLog(log);
     closeDetail();
     renderHome();
-    toast(`Logged: ${name}. Today’s remaining updated.`);
+    toast(
+      kHi > kMid
+        ? `Logged: ${name} · ${kMid} kcal mid (up to ${kHi}). Protein ~${pMid}g.`
+        : `Logged: ${name}. Today’s remaining updated.`
+    );
     maybeNotifyAfterLastMeal(beforeProgress, log).catch(() => {});
   }
 

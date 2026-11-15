@@ -122,7 +122,8 @@
     const en =
       dish?.askEn ||
       (looksEnglish(raw) ? raw : `I'd like the ${name}, please.`);
-    const zh = dish?.askZh || `请给我一份${name}。`;
+    const zhName = dish?.nameZh || dish?.nameLocal || name;
+    const zh = dish?.askZh || `请给我一份${zhName}。`;
 
     let local;
     if (lang === "en") local = en;

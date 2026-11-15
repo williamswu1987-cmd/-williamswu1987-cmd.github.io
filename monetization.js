@@ -16,6 +16,13 @@
 
   const FREE_DAILY_LOOKUPS = 3;
 
+  function localDayKey(d = new Date()) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
   /** Same-origin on Contabo; override with window.PROTIVA_API_BASE if needed */
   function apiBase() {
     if (window.PROTIVA_API_BASE) return window.PROTIVA_API_BASE.replace(/\/$/, "");
@@ -77,7 +84,7 @@
     if (st && typeof st.remaining === "number") return st.remaining;
     try {
       const u = JSON.parse(localStorage.getItem(USAGE_CACHE_KEY) || "{}");
-      const day = new Date().toISOString().slice(0, 10);
+      const day = localDayKey();
       if (u.day === day) return Math.max(0, FREE_DAILY_LOOKUPS - (u.lookups || 0));
     } catch {
       /* ignore */
@@ -111,7 +118,7 @@
       // allow one soft local fallback only if never contacted server.
       const cache = readCache();
       if (!cache?.server) {
-        const day = new Date().toISOString().slice(0, 10);
+        const day = localDayKey();
         let u = { day, lookups: 0 };
         try {
           u = JSON.parse(localStorage.getItem(USAGE_CACHE_KEY) || "{}");
